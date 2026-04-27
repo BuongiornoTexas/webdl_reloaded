@@ -1,0 +1,4 @@
+streamlink
+lxml
+requests
+requests-cache
