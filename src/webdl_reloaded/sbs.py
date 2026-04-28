@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import requests_cache
 from common import grab_html, grab_json, grab_xml, download_hls, Node, append_to_qs
 

@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "webdl_reloaded"
+version = "v0.1.0"
+authors = [
+  {name="James Bunton/delx"},
+  {name="BuongiornoTexas"},
+]
+description = "Tools to grab video from online Free To Air Australian channels."
+readme = "README.md"
+requires-python = ">=3.11"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "streamlink",
+    "lxml",
+    "requests",
+    "requests-cache",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/BuongiornoTexas/webdl_reloaded"
+"Bug Tracker" = "https://github.com/BuongiornoTexas/webdl_reloaded/issues"

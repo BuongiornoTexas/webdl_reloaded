@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import logging
 from common import grab_json, download_hls, Node, append_to_qs
 

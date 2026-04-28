@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from common import append_to_qs, grab_json, grab_text, Node, download_hls
 import hashlib
 import hmac
