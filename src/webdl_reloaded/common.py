@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
+"""Provides utility functions and classes for WebDL."""
 
-import hashlib
 import io
-import json
 import logging
 import lxml.etree
 import lxml.html
@@ -27,9 +26,9 @@ except ImportError:
 
 
 logging.basicConfig(
-    format = "%(levelname)s %(message)s",
-    level = logging.INFO if os.environ.get("DEBUG", None) is None else logging.DEBUG,
-    stream = sys.stdout,
+    format="%(levelname)s %(message)s",
+    level=logging.INFO if os.environ.get("DEBUG", None) is None else logging.DEBUG,
+    stream=sys.stdout,
 )
 
 CACHE_FILE = os.path.join(
@@ -43,8 +42,15 @@ if not os.path.isdir(os.path.dirname(CACHE_FILE)):
 requests_cache.install_cache(CACHE_FILE, backend='sqlite', expire_after=3600)
 
 
-class Node(object):
-    def __init__(self, title, parent=None):
+class Node():
+    """Provides node for walking streaming provider catalogues and download links."""
+
+    title: str
+    children: list[Node]
+    parent: Node | None
+
+    def __init__(self, title: str, parent: Node | None = None) -> None:
+        """Initialise Node."""
         self.title = title
         if parent:
             parent.children.append(self)

@@ -11,7 +11,7 @@ authors = [
 ]
 description = "Tools to grab video from online Free To Air Australian channels."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.14"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",

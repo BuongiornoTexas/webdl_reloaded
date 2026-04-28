@@ -1,13 +1,20 @@
 #!/usr/bin/env python3
+# cspell:ignore rsrtools
+"""A simple interactive system for selecting and downloading FTA media."""
+from common import load_root_node, natural_sort, Node
 
-from common import load_root_node, natural_sort
 
-
-def choose(options, allow_multi):
+def choose(options: list[tuple[str, Node]], allow_multi: bool) -> None | list[Node]:
+    """Provide a very basic interactive text menu system for user input."""
+    # TODO: Upgrade with enhanced choose from sleeper_service/rsrtools.
+    #       Right now I've made typing consistent with way choose is applied.
+    #       From my memory, my updated version offers a bit more flex, and ?may?
+    #       be cleaner?
     reverse_map = {}
     for i, (key, value) in enumerate(options):
-        print("%3d) %s" % (i+1, key))
-        reverse_map[i+1] = value
+        # Create the selection menu.
+        print(f"{i+1:4}) {key}")
+        reverse_map[i + 1] = value
     print("  0) Back")
     while True:
         try:
@@ -15,51 +22,60 @@ def choose(options, allow_multi):
             if len(str_values) == 0:
                 continue
             if "0" in str_values:
-                return
+                return None
             values = []
             for s in str_values:
+                # Convert string return into one or more integer values.
                 if s.isdigit():
                     values.append(int(s))
                 else:
                     low, high = s.split("-", 1)
                     values.extend(range(int(low), int(high) + 1))
-            values = [reverse_map[value] for value in values if value in reverse_map]
-            if allow_multi:
-                return values
-            else:
-                if len(values) == 1:
-                    return values[0]
+            ret_values = [
+                # Generate selection from integer indices.
+                reverse_map[value] for value in values if value in reverse_map
+            ]
+            if allow_multi or len(ret_values) == 1:
+                return ret_values
+
         except (ValueError, IndexError):
             print("Invalid input, please try again")
-            pass
 
-def main():
+
+def main() -> None:
+    """Provide interactive selection for media downloads."""
     node = load_root_node()
 
     while True:
-        options = []
-        will_download = True
+        menu_options = []
+        download_enabled = True
         for n in node.get_children():
-            options.append((n.title, n))
+            menu_options.append((n.title, n))
             if not n.can_download:
-                will_download = False
-        options = natural_sort(options, key=lambda x: x[0])
-        result = choose(options, allow_multi=will_download)
-        if result is None:
+                # root or navigation node, not downloadable.
+                download_enabled = False
+        menu_options = natural_sort(menu_options, key=lambda x: x[0])
+        # If we are at the episode/movie level that allows downloading, we can
+        # select multiples (download_enabled == True enables multi-select).
+        selected_nodes = choose(menu_options, allow_multi=download_enabled)
+        if selected_nodes is None:
             if node.parent is not None:
                 node = node.parent
             else:
                 break
-        elif will_download:
-            for n in result:
+        elif download_enabled:
+            for n in selected_nodes:
                 if not n.download():
                     input("Press return to continue...\n")
         else:
-            node = result
+            if len(selected_nodes) != 1:
+                # Should only return 1 node selection if not downloading.
+                raise IndexError("Unexpected multiple index/root nodes returned.")
+            node = selected_nodes[0]
+
 
 if __name__ == "__main__":
     try:
         main()
     except (KeyboardInterrupt, EOFError):
         print("\nExiting...")
-
