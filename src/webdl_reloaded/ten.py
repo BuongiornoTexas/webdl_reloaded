@@ -24,7 +24,7 @@ class TenSeriesNode(Node):
         self.expected_tv_show = expected_tv_show
         self.video_ids = set()
 
-    def fill_children(self):
+    def _fill_children(self):
         page_number = 0
         while page_number < 100:
             url = self.get_page_url(self.query, page_number)
@@ -61,7 +61,11 @@ class TenSeriesNode(Node):
         TenVideoNode(title, self, video_url)
 
 class TenRootNode(Node):
-    def fill_children(self):
+    def __init__(self, parent: Node) -> None:
+        """Initialise TenPlay root."""
+        super().__init__("Ten - 10Play", parent)
+
+    def _fill_children(self):
         doc = grab_json(SERIES_LIST_URL)
 
         for series in doc["Browse TV"]["Shows"]:
@@ -70,6 +74,3 @@ class TenRootNode(Node):
             expected_tv_show = series["tv_show"]
 
             TenSeriesNode(title, self, query, expected_tv_show)
-
-def fill_nodes(root_node):
-    TenRootNode("Ten", root_node)

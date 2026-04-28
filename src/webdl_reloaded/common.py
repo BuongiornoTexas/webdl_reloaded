@@ -60,30 +60,16 @@ class Node():
 
     def get_children(self):
         if not self.children:
-            self.fill_children()
+            self._fill_children()
             self.children = natural_sort(self.children, key=lambda node: node.title)
         return self.children
 
-    def fill_children(self):
+    def _fill_children(self):
         pass
 
     def download(self):
         raise NotImplemented
 
-
-def load_root_node():
-    root_node = Node("Root")
-
-    import iview
-    iview.fill_nodes(root_node)
-
-    import sbs
-    sbs.fill_nodes(root_node)
-
-    import ten
-    ten.fill_nodes(root_node)
-
-    return root_node
 
 valid_chars = frozenset("-_.()!@#%^ abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
 def sanify_filename(filename):

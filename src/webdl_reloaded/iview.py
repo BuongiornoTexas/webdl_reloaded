@@ -65,7 +65,7 @@ class IviewIndexNode(Node):
         self.url = url
         self.unique_series = set()
 
-    def fill_children(self):
+    def _fill_children(self):
         info = grab_json(self.url)
         for key in ["carousels", "collections", "index"]:
             for collection_list in info.get(key, None):
@@ -86,7 +86,7 @@ class IviewSeriesNode(Node):
         Node.__init__(self, title, parent)
         self.url = url
 
-    def fill_children(self):
+    def _fill_children(self):
         ep_info = grab_json(self.url)
         series_slug = ep_info["href"].split("/")[1]
         series_url = API_URL + "/series/" + series_slug + "/" + ep_info["seriesHouseNumber"]
@@ -99,13 +99,17 @@ class IviewFlatNode(Node):
         Node.__init__(self, title, parent)
         self.url = url
 
-    def fill_children(self):
+    def _fill_children(self):
         info = grab_json(self.url)
         for ep_info in info:
             add_episode(self, ep_info)
 
 
 class IviewRootNode(Node):
+    def __init__(self, parent: Node) -> None:
+        """Initialise ABC iview root."""
+        super().__init__("ABC iView", parent)
+
     def load_categories(self):
         by_category_node = Node("By Category", self)
 
@@ -144,12 +148,7 @@ class IviewRootNode(Node):
     def load_featured(self):
         IviewFlatNode("Featured", self, API_URL + "/featured")
 
-    def fill_children(self):
+    def _fill_children(self):
         self.load_categories()
         self.load_channels()
         self.load_featured()
-
-
-def fill_nodes(root_node):
-    IviewRootNode("ABC iView", root_node)
-

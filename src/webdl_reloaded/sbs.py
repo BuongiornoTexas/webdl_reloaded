@@ -46,10 +46,11 @@ class SbsNavNode(Node):
                 return child
 
 class SbsRootNode(SbsNavNode):
-    def __init__(self, parent):
-        Node.__init__(self, "SBS", parent)
+    def __init__(self, parent: Node):
+        """Initialise SBS root."""
+        super().__init__("SBS", parent)
 
-    def fill_children(self):
+    def _fill_children(self):
         all_video_entries = self.load_all_video_entries()
         category_and_entry_data = self.explode_videos_to_unique_categories(all_video_entries)
         for category_path, entry_data in category_and_entry_data:
@@ -137,6 +138,3 @@ class SbsRootNode(SbsNavNode):
         if not current_node:
             current_node = SbsNavNode(current_path, parent)
         return self.create_nav_node(current_node, category_path[1:])
-
-def fill_nodes(root_node):
-    SbsRootNode(root_node)

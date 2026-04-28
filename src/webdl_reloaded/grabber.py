@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # cspell:ignore rsrtools
 """A simple interactive system for selecting and downloading FTA media."""
-from common import load_root_node, natural_sort, Node
+from common import natural_sort, Node
+from fta_services import FTAServices
 
 
 def choose(options: list[tuple[str, Node]], allow_multi: bool) -> None | list[Node]:
@@ -44,7 +45,7 @@ def choose(options: list[tuple[str, Node]], allow_multi: bool) -> None | list[No
 
 def main() -> None:
     """Provide interactive selection for media downloads."""
-    node = load_root_node()
+    node = FTAServices()
 
     while True:
         menu_options = []

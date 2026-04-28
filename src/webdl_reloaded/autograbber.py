@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
-from common import load_root_node
 import fnmatch
 import logging
 import os
 import shutil
 import sys
+from fta_services import FTAServices
 
 HISTORY_FILENAME = ".history.txt"
 PATTERN_FILENAME = ".patterns.txt"
@@ -80,7 +80,7 @@ def match(download_list, node, pattern, count=0):
 
 def process_one_dir(destdir, patternfile):
     os.chdir(destdir)
-    node = load_root_node()
+    node = FTAServices()
     download_list = DownloadList()
 
     for line in open(patternfile):
