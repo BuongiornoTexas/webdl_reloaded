@@ -6,11 +6,11 @@ Replaces webdl.common.load_root_node method and is more consistent with other no
 classes/objects.
 """
 
-from common import Node
+from node import Node
 # Each new service needs to be added here and called in _fill_children
-from iview import IviewRootNode
-from sbs import SbsRootNode
-from ten import TenRootNode
+from nodes_iview import IviewRootNode
+from nodes_sbs import SbsRootNode
+from nodes_ten import TenRootNode
 
 
 class FTAServices(Node):

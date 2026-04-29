@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
+"""Provides media nodes for 10Play."""
 
 import logging
-from common import grab_json, download_hls, Node, append_to_qs
+from node import Node
+from common import grab_json, download_hls, append_to_qs
 
 SERIES_LIST_URL = "https://vod.ten.com.au/config/android-v4"
 SERIES_DETAIL_URL = "https://v.tenplay.com.au/api/videos/bcquery"

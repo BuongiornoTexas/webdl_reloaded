@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
+"""Provides media nodes for SBS on demand."""
 
-import requests_cache
-from common import grab_html, grab_json, grab_xml, download_hls, Node, append_to_qs
-
-import json
 import logging
 import os
 import sys
+
+import requests_cache
+from node import Node
+from common import grab_json, grab_xml, download_hls, append_to_qs
+
 
 BASE = "https://www.sbs.com.au"
 FULL_VIDEO_LIST = BASE + "/api/video_feed/f/Bgtm9B/sbs-section-programs/"

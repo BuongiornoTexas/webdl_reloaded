@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
+"""Implements the batch media downloader (autograbber)."""
 
 import fnmatch
 import logging
 import os
 import shutil
 import sys
-from fta_services import FTAServices
+from node_fta_services import FTAServices
 
 HISTORY_FILENAME = ".history.txt"
 PATTERN_FILENAME = ".patterns.txt"
@@ -73,7 +74,7 @@ def match(download_list, node, pattern, count=0):
         logging.error("No match found for pattern:", "/".join(pattern))
         return
     p = pattern[count]
-    for child in node.get_children():
+    for child in node.children:
         if fnmatch.fnmatch(child.title, p):
             match(download_list, child, pattern, count+1)
 

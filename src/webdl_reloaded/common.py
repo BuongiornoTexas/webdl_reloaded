@@ -42,35 +42,6 @@ if not os.path.isdir(os.path.dirname(CACHE_FILE)):
 requests_cache.install_cache(CACHE_FILE, backend='sqlite', expire_after=3600)
 
 
-class Node():
-    """Provides node for walking streaming provider catalogues and download links."""
-
-    title: str
-    children: list[Node]
-    parent: Node | None
-
-    def __init__(self, title: str, parent: Node | None = None) -> None:
-        """Initialise Node."""
-        self.title = title
-        if parent:
-            parent.children.append(self)
-        self.parent = parent
-        self.children = []
-        self.can_download = False
-
-    def get_children(self):
-        if not self.children:
-            self._fill_children()
-            self.children = natural_sort(self.children, key=lambda node: node.title)
-        return self.children
-
-    def _fill_children(self):
-        pass
-
-    def download(self):
-        raise NotImplemented
-
-
 valid_chars = frozenset("-_.()!@#%^ abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
 def sanify_filename(filename):
     filename = "".join(c for c in filename if c in valid_chars)
@@ -220,7 +191,9 @@ def remux(infile, outfile):
     os.unlink(infile)
     return True
 
-def convert_to_mp4(filename):
+
+def convert_to_mp4(filename) -> bool:
+    """Convert file to .mp4 format."""
     with open(filename, "rb") as f:
         fourcc = f.read(4)
     basename, ext = os.path.splitext(filename)

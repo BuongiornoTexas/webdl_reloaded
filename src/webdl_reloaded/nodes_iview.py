@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
+"""Provides media nodes for ABC iView."""
 
-from common import append_to_qs, grab_json, grab_text, Node, download_hls
+import string
+import time
 import hashlib
 import hmac
 import requests_cache
-import string
-import time
-import urllib.parse
+
+from node import Node
+from common import append_to_qs, grab_json, grab_text, download_hls
+
 
 BASE_URL = "https://iview.abc.net.au"
 API_URL = "https://iview.abc.net.au/api"
