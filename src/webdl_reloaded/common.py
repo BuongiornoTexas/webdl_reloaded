@@ -1,32 +1,44 @@
 #!/usr/bin/env python3
 """Provides utility functions and classes for WebDL."""
 
+# cspell:ignore webdl
+# I've removed the following original webdl methods, as they were not being called
+# anywhere. Recoverable from the original webdl archive.
+#   def ensure_scheme(url):
+#   def grab_html(url):
+#   def check_command_exists(cmd):
+#   def download_hds(filename, video_url, pvswf=None):
+#   def download_mpd(filename, video_url):
+#   def download_http(filename, video_url):
+
 import io
-import logging
-import lxml.etree
-import lxml.html
 import os
 import re
-import requests
-import requests_cache
-import shutil
+import logging
 import signal
 import subprocess
 import sys
-import time
 import urllib.parse
+import lxml.etree
+import requests
+import requests_cache
+
 
 USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/112.0"
 
+# TODO create logger for common
+
 try:
     import autosocks
+
     autosocks.try_autosocks()
 except ImportError:
     pass
 
 
 logging.basicConfig(
-    format="%(levelname)s %(message)s",
+    # Reverted to default pythong log format.
+    # format="%(levelname)s %(message)s",
     level=logging.INFO if os.environ.get("DEBUG", None) is None else logging.DEBUG,
     stream=sys.stdout,
 )
@@ -34,30 +46,28 @@ logging.basicConfig(
 CACHE_FILE = os.path.join(
     os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~/.cache")),
     "webdl",
-    "requests_cache"
+    "requests_cache",
 )
 if not os.path.isdir(os.path.dirname(CACHE_FILE)):
     os.makedirs(os.path.dirname(CACHE_FILE))
 
-requests_cache.install_cache(CACHE_FILE, backend='sqlite', expire_after=3600)
+requests_cache.install_cache(CACHE_FILE, backend="sqlite", expire_after=3600)
 
 
-valid_chars = frozenset("-_.()!@#%^ abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+valid_chars = frozenset(
+    "-_.()!@#%^ abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+)
+
+
 def sanify_filename(filename):
     filename = "".join(c for c in filename if c in valid_chars)
     assert len(filename) > 0
     return filename
 
-def ensure_scheme(url):
-    parts = urllib.parse.urlparse(url)
-    if parts.scheme:
-        return url
-    parts = list(parts)
-    parts[0] = "http"
-    return urllib.parse.urlunparse(parts)
 
 http_session = requests.Session()
 http_session.headers["User-Agent"] = USER_AGENT
+
 
 def grab_text(url):
     logging.debug("grab_text(%r)", url)
@@ -65,27 +75,25 @@ def grab_text(url):
     response = http_session.send(request)
     return response.text
 
-def grab_html(url):
-    logging.debug("grab_html(%r)", url)
-    request = http_session.prepare_request(requests.Request("GET", url))
-    response = http_session.send(request)
-    doc = lxml.html.parse(io.BytesIO(response.content), lxml.html.HTMLParser(encoding="utf-8", recover=True))
-    response.close()
-    return doc
 
 def grab_xml(url):
     logging.debug("grab_xml(%r)", url)
     request = http_session.prepare_request(requests.Request("GET", url))
     response = http_session.send(request)
-    doc = lxml.etree.parse(io.BytesIO(response.content), lxml.etree.XMLParser(encoding="utf-8", recover=True))
+    doc = lxml.etree.parse(
+        io.BytesIO(response.content),
+        lxml.etree.XMLParser(encoding="utf-8", recover=True),
+    )
     response.close()
     return doc
+
 
 def grab_json(url):
     logging.debug("grab_json(%r)", url)
     request = http_session.prepare_request(requests.Request("GET", url))
     response = http_session.send(request)
     return response.json()
+
 
 def exec_subprocess(cmd):
     logging.debug("Executing: %s", cmd)
@@ -110,19 +118,14 @@ def exec_subprocess(cmd):
     return False
 
 
-def check_command_exists(cmd):
-    try:
-        subprocess.check_output(cmd, stderr=subprocess.STDOUT)
-        return True
-    except Exception:
-        return False
-
 def get_duration(filename):
     cmd = [
         "ffprobe",
         filename,
-        "-show_entries", "format=duration",
-        "-v", "quiet",
+        "-show_entries",
+        "format=duration",
+        "-v",
+        "quiet",
     ]
     output = subprocess.check_output(cmd).decode("utf-8")
     for line in output.split("\n"):
@@ -133,14 +136,16 @@ def get_duration(filename):
         if duration.isdigit():
             return int(duration)
 
-
     logging.debug("Falling back to full decode to find duration: %s % filename")
 
     cmd = [
         "ffmpeg",
-        "-i", filename,
+        "-i",
+        filename,
         "-vn",
-        "-f", "null", "-",
+        "-f",
+        "null",
+        "-",
     ]
     output = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode("utf-8")
     duration = None
@@ -157,6 +162,7 @@ def get_duration(filename):
     else:
         raise Exception("Unable to determine video duration of " + filename)
 
+
 def check_video_durations(flv_filename, mp4_filename):
     flv_duration = get_duration(flv_filename)
     mp4_duration = get_duration(mp4_filename)
@@ -164,21 +170,33 @@ def check_video_durations(flv_filename, mp4_filename):
     if abs(flv_duration - mp4_duration) > 1:
         logging.error(
             "The duration of %s is suspicious, did the remux fail? Expected %s == %s",
-            mp4_filename, flv_duration, mp4_duration
+            mp4_filename,
+            flv_duration,
+            mp4_duration,
         )
         return False
 
     return True
 
+
 def remux(infile, outfile):
+    # I've disabled processing to mp4. One day I might submit a PR as a long
+    # term command line fix.
+    print("remux has been disabled - use handbrake")
+    return True
+
     logging.info("Converting %s to mp4", infile)
 
     cmd = [
         "ffmpeg",
-        "-i", infile,
-        "-bsf:a", "aac_adtstoasc",
-        "-acodec", "copy",
-        "-vcodec", "copy",
+        "-i",
+        infile,
+        "-bsf:a",
+        "aac_adtstoasc",
+        "-acodec",
+        "copy",
+        "-vcodec",
+        "copy",
         "-y",
         outfile,
     ]
@@ -210,28 +228,6 @@ def convert_to_mp4(filename) -> bool:
     return ext == ".mp4"
 
 
-def download_hds(filename, video_url, pvswf=None):
-    filename = sanify_filename(filename)
-    logging.info("Downloading: %s", filename)
-
-    video_url = "hds://" + video_url
-    if pvswf:
-        param = "%s pvswf=%s" % (video_url, pvswf)
-    else:
-        param = video_url
-
-    cmd = [
-        "streamlink",
-        "--force",
-        "--output", filename,
-        param,
-        "best",
-    ]
-    if exec_subprocess(cmd):
-        return convert_to_mp4(filename)
-    else:
-        return False
-
 def download_hls(filename, video_url):
     filename = sanify_filename(filename)
     video_url = "hlsvariant://" + video_url
@@ -239,9 +235,11 @@ def download_hls(filename, video_url):
 
     cmd = [
         "streamlink",
-        "--http-header", "User-Agent=" + USER_AGENT,
+        "--http-header",
+        "User-Agent=" + USER_AGENT,
         "--force",
-        "--output", filename,
+        "--output",
+        filename,
         video_url,
         "best",
     ]
@@ -250,40 +248,10 @@ def download_hls(filename, video_url):
     else:
         return False
 
-def download_mpd(filename, video_url):
-    filename = sanify_filename(filename)
-    video_url = "dash://" + video_url
-    logging.info("Downloading: %s", filename)
-
-    cmd = [
-        "streamlink",
-        "--force",
-        "--output", filename,
-        video_url,
-        "best",
-    ]
-    if exec_subprocess(cmd):
-        return convert_to_mp4(filename)
-    else:
-        return False
-
-def download_http(filename, video_url):
-    filename = sanify_filename(filename)
-    logging.info("Downloading: %s", filename)
-
-    cmd = [
-        "curl",
-        "--fail", "--retry", "3",
-        "-o", filename,
-        video_url,
-    ]
-    if exec_subprocess(cmd):
-        return convert_to_mp4(filename)
-    else:
-        return False
 
 def natural_sort(l, key=None):
     ignore_list = ["a", "the"]
+
     def key_func(k):
         if key is not None:
             k = key(k)
@@ -301,6 +269,7 @@ def natural_sort(l, key=None):
 
     return sorted(l, key=key_func)
 
+
 def append_to_qs(url, params):
     r = list(urllib.parse.urlsplit(url))
     qs = urllib.parse.parse_qs(r[3])
@@ -312,4 +281,3 @@ def append_to_qs(url, params):
     r[3] = urllib.parse.urlencode(sorted(qs.items()), True)
     url = urllib.parse.urlunsplit(r)
     return url
-

@@ -1,3 +1,7 @@
+<!---
+cspell:ignore Autograbber
+--->
+
 # TODO
 
 # WebDL Reloaded
@@ -18,6 +22,19 @@ based on the reasoning that it is the most actively developed downloader, so it 
 makes sense to use it, especially as any updates to downloaders with WebDL will end up
 largely re-implementing yt-dlp code anyway (I'd prefer to cut out the middleman).
 
+# Ugrading from OG WebDL
+
+## Autograbber
+
+- Pattern files are no longer supported as command line arguments. 
+- Each directory specified as an autograbber target must contain a pattern file named
+`.patterns.txt`. If you have a (very) old `patterns.txt` file, you can rename it to
+fix the problem.
+- The extremely old history files `downloaded_auto.txt` and `.downloaded_auto.txt` are 
+no longer fixed automatically. If you still have one of these a) I'm impressed with how
+long you have kept your home rolled setup running! and b) renaming the file to 
+`.history.txt` will fix the problem.
+
 # Roadmap
 
 - Update code with minor hacks I've incorporated to keep the original code running.
@@ -26,3 +43,5 @@ largely re-implementing yt-dlp code anyway (I'd prefer to cut out the middleman)
 - Add annotations.
 - Convert downloader method calls to external yt-dlp calls.
 - Get 10Play back online.
+- ~~Removed backwards compatibility with old autograbber argument format (pattern
+file must now appear in each directory).~~

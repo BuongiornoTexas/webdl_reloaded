@@ -78,6 +78,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    # TODO Implement arg_parser and options file.
     try:
         main()
     except (KeyboardInterrupt, EOFError):
