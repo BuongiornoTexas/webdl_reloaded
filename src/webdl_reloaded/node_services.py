@@ -37,12 +37,8 @@ SERVICE_PROVIDERS: dict[str, type[AbstractNode]] = {
 class ServiceProviders(AbstractNode):
     """Root node for streaming service providers."""
 
-    def __init__(self) -> None:
-        """Initialise service providers."""
-        super().__init__(title="Services", parent=None)
-
     def _fill_children(self) -> None:
         """Add all service provider root nodes."""
         self._children = []
         for title, node_class in SERVICE_PROVIDERS.items():
-            self.children.append(node_class(title, self))
+            self.children.append(node_class(title))

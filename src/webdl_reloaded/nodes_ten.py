@@ -11,8 +11,8 @@ SERIES_DETAIL_URL = "https://v.tenplay.com.au/api/videos/bcquery"
 
 
 class TenMediaNode(AbstractNode):
-    def __init__(self, title: str, parent: AbstractNode, video_url: str) -> None:
-        super().__init__(title, parent)
+    def __init__(self, title: str, video_url: str) -> None:
+        super().__init__(title)
         self.can_download = True
         self.video_url = video_url
 
@@ -29,9 +29,9 @@ class TenMediaNode(AbstractNode):
 class TenMediaContainerNode(AbstractNode):
     # TODO Fix up annotations if we keep this.
     def __init__(
-        self, title: str, parent: AbstractNode, query: Any, expected_tv_show: Any
+        self, title: str, query: Any, expected_tv_show: Any
     ) -> None:
-        super().__init__(title, parent)
+        super().__init__(title)
         self.title = title
         self.query = query
         self.expected_tv_show = expected_tv_show
@@ -83,7 +83,7 @@ class TenMediaContainerNode(AbstractNode):
             return
         self.video_ids.add(video_id)
 
-        self._children.append(TenMediaNode(title, self, video_url))
+        self._children.append(TenMediaNode(title, video_url))
 
 
 class TenRootNode(AbstractNode):
@@ -103,5 +103,5 @@ class TenRootNode(AbstractNode):
 
         self._children.append(
             # Can fix annotation error by moving append into _fill_children.
-            TenMediaContainerNode(title, self, query, expected_tv_show)
+            TenMediaContainerNode(title, query, expected_tv_show)
         )

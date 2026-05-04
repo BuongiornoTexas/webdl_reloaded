@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# cspell:ignore delx
+# cspell:ignore delx webdl
 """Abstract Node base class for the tree of streaming services and their catalogues."""
 from abc import ABC, abstractmethod
 from common import natural_sort
@@ -12,16 +12,18 @@ class AbstractNode(ABC):
     """
 
     title: str
-    parent: AbstractNode | None
+    # Removed parent attribute. Parents are responsible for tracking children, but
+    # but not vice versa. I'm believe this will simplify handling of Nodes with
+    # multiple parents - e.g. a series in multiple genres has only one instance, with
+    # each genre keeping track of it as a child.
     _children: list[AbstractNode] | None = None
     can_download: bool = False
 
-    def __init__(self, title: str, parent: AbstractNode | None = None) -> None:
+    def __init__(self, title: str) -> None:
         """Initialise Node."""
-        # Original webdl made child responsible for tracking its parent. I've 
-        # removed this and made parents responsible for tracking their children. 
+        # Original webdl made child responsible for tracking its parent. I've
+        # removed this and made parents responsible for tracking their children.
         self.title = title
-        self.parent = parent
 
     @property
     def children(self) -> list[AbstractNode]:

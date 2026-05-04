@@ -25,9 +25,9 @@ class IViewMediaNode(AbstractNode):
     video_key: str
 
     # TODO Eliminate __init__ when converting to pydantic.
-    def __init__(self, title: str, parent: AbstractNode, video_key: str) -> None:
+    def __init__(self, title: str, video_key: str) -> None:
         """Initialise iView media node."""
-        super().__init__(title, parent)
+        super().__init__(title)
         self.video_key = video_key
 
         # TODO These two need to be done in the pydantic post_init.
@@ -91,9 +91,9 @@ class IviewIndexNode(AbstractNode):
     unique_series: set[str] = set()
 
     # TODO Eliminate __init__ when converting to pydantic.
-    def __init__(self, title: str, parent: AbstractNode, url: str) -> None:
+    def __init__(self, title: str, url: str) -> None:
         """Initialise iView index node."""
-        super().__init__(title, parent)
+        super().__init__(title)
         self.url = url
 
     def _fill_children(self) -> None:
@@ -111,9 +111,7 @@ class IviewIndexNode(AbstractNode):
                         self.unique_series.add(title)
                         url = API_URL + "/" + ep_info["href"]
                         self._children.append(
-                            IViewMediaContainerNode(
-                                title, self, url, series_container=True
-                            )
+                            IViewMediaContainerNode(title, url, series_container=True)
                         )
 
 
@@ -127,11 +125,9 @@ class IViewMediaContainerNode(AbstractNode):
     series_container: bool
 
     # TODO Eliminate __init__ when converting to pydantic.
-    def __init__(
-        self, title: str, parent: AbstractNode, url: str, series_container: bool
-    ) -> None:
+    def __init__(self, title: str, url: str, series_container: bool) -> None:
         """Initialise iView container node."""
-        super().__init__(title, parent)
+        super().__init__(title)
         self.url = url
         self.series_container = series_container
 
@@ -167,7 +163,7 @@ class IViewMediaContainerNode(AbstractNode):
                 # How it's done on the Featured page.
                 episode_title = series_title
 
-            self._children.append(IViewMediaNode(episode_title, self, video_key))
+            self._children.append(IViewMediaNode(episode_title, video_key))
 
 
 class IViewCategoryContainerNode(AbstractNode):
@@ -186,7 +182,7 @@ class IViewCategoryContainerNode(AbstractNode):
             category_href = category_data["href"]
 
             self._children.append(
-                IviewIndexNode(category_title, self, API_URL + "/" + category_href)
+                IviewIndexNode(category_title, API_URL + "/" + category_href)
             )
 
 
@@ -213,9 +209,7 @@ class IViewChannelContainerNode(AbstractNode):
             channel_href = channel_data["href"]
 
             self._children.append(
-                IviewIndexNode(
-                    channel_title, self, API_URL + "/" + channel_href
-                )
+                IviewIndexNode(channel_title, API_URL + "/" + channel_href)
             )
 
 
@@ -226,9 +220,9 @@ class IViewRootNode(AbstractNode):
 
     def _fill_children(self) -> None:
         self._children = [
-            IViewCategoryContainerNode("By Category", self),
-            IViewChannelContainerNode("By Channel", self),
+            IViewCategoryContainerNode("By Category"),
+            IViewChannelContainerNode("By Channel"),
             IViewMediaContainerNode(
-                "Featured", self, API_URL + "/featured", series_container=False
+                "Featured", API_URL + "/featured", series_container=False
             ),
         ]

@@ -8,7 +8,7 @@ import sys
 from os import chdir
 from pathlib import Path
 from fnmatch import fnmatch
-from node import Node
+from node import AbstractNode
 from node_services import ServiceProviders
 
 HISTORY_FILENAME = ".history.txt"
@@ -20,7 +20,7 @@ LOGFILE = LOGGER + ".log"
 logger = logging.getLogger(LOGGER)
 
 
-class DownloadList():
+class DownloadList:
     """Class to manage download history and download exclusions."""
 
     exclude_list: set = set()
@@ -56,7 +56,7 @@ class DownloadList():
             logger.error("Error reading history file: %s -- %s.", HISTORY_FILENAME, exc)
             raise
 
-    def pending(self, node: Node) -> bool:
+    def pending(self, node: AbstractNode) -> bool:
         """Determine if node media should be downloaded based on history and exclusions.
 
         Returns false if node.title:
@@ -71,7 +71,7 @@ class DownloadList():
                 return False
         return True
 
-    def add_to_history(self, node: Node) -> None:
+    def add_to_history(self, node: AbstractNode) -> None:
         """Add title to history file and seen list."""
         self.seen_list.add(node.title.strip())
         # This is not efficient, as we add a line at a time. But often
@@ -81,7 +81,7 @@ class DownloadList():
             history.write(node.title.strip() + "\n")
 
 
-class DownLoader():
+class DownLoader:
     """Minimal pattern match downloader.
 
     This is really a glorified call to the old webdl "match & download" method.
@@ -94,7 +94,7 @@ class DownLoader():
         """Initialise Downloader."""
         self.download_list = download_list
 
-    def download_matches(self, node: Node, pattern: list[str]) -> None:
+    def download_matches(self, node: AbstractNode, pattern: list[str]) -> None:
         """Perform sanity checks and run the match and download."""
         if len(pattern) == 0 or pattern is None:
             # No match possible.
@@ -104,7 +104,9 @@ class DownLoader():
         # Note: index should not be specified in this call.
         self._download_matches(node, pattern)
 
-    def _download_matches(self, node: Node, pattern: list[str], index: int = 0) -> None:
+    def _download_matches(
+        self, node: AbstractNode, pattern: list[str], index: int = 0
+    ) -> None:
         """Walk the node tree and download matching media matching pattern.
 
         Node title is checked against pattern[index]. If a match occurs and node is:
@@ -153,7 +155,7 @@ def process_one_dir(dest_dir: Path, pattern_file: Path) -> None:
     chdir(dest_dir)
 
     logger.info("Started %s", dest_dir)
-    services_root = ServiceProviders()
+    services_root = ServiceProviders("Services")
     downloader = DownLoader(DownloadList())
 
     with open(pattern_file, "r", encoding=DEFAULT_ENCODING) as pattern_fp:

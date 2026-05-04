@@ -21,9 +21,9 @@ NS = {
 
 class SbsMediaNode(AbstractNode):
     """Downloadable SBS medis node."""
-    def __init__(self, title: str, parent: AbstractNode, url: str) -> None:
+    def __init__(self, title: str, url: str) -> None:
         """Initialise SBS media node."""
-        super().__init__(title, parent)
+        super().__init__(title)
         self.video_id = url.split("/")[-1]
         self.can_download = True
 
@@ -151,5 +151,5 @@ class SbsRootNode(SbsIndexNode):
         current_path = category_path[0]
         current_node = parent.find_existing_child(current_path)
         if not current_node:
-            current_node = SbsIndexNode(current_path, parent)
+            current_node = SbsIndexNode(current_path)
         return self.create_nav_node(current_node, category_path[1:])

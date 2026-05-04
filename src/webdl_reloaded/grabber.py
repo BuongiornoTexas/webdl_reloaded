@@ -52,7 +52,7 @@ def choose(
 
 def main() -> None:
     """Provide interactive selection for media downloads."""
-    node = cast(AbstractNode, ServiceProviders())
+    node = cast(AbstractNode, ServiceProviders("Services"))
 
     # Keep track of where we are in the tree with an array (autograbber does
     # this with recursion).
