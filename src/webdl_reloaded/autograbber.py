@@ -9,7 +9,7 @@ from os import chdir
 from pathlib import Path
 from fnmatch import fnmatch
 from node import Node
-from node_fta_services import FTAServices
+from node_services import ServiceProviders
 
 HISTORY_FILENAME = ".history.txt"
 PATTERN_FILENAME = ".patterns.txt"
@@ -153,7 +153,7 @@ def process_one_dir(dest_dir: Path, pattern_file: Path) -> None:
     chdir(dest_dir)
 
     logger.info("Started %s", dest_dir)
-    services_root = FTAServices()
+    services_root = ServiceProviders()
     downloader = DownLoader(DownloadList())
 
     with open(pattern_file, "r", encoding=DEFAULT_ENCODING) as pattern_fp:

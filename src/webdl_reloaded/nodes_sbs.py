@@ -6,7 +6,7 @@ import os
 import sys
 
 import requests_cache
-from node import Node
+from node import AbstractNode
 from common import grab_json, grab_xml, download_hls, append_to_qs
 
 
@@ -19,13 +19,22 @@ NS = {
 }
 
 
-class SbsVideoNode(Node):
-    def __init__(self, title, parent, url):
-        Node.__init__(self, title, parent)
+class SbsMediaNode(AbstractNode):
+    """Downloadable SBS medis node."""
+    def __init__(self, title: str, parent: AbstractNode, url: str) -> None:
+        """Initialise SBS media node."""
+        super().__init__(title, parent)
         self.video_id = url.split("/")[-1]
         self.can_download = True
 
-    def download(self):
+    def _fill_children(self) -> None:
+        """Load child nodes."""
+        # Downloadable leaf. No children.
+        self._children = []
+
+    def download(self) -> bool:
+        """Download SBS media."""
+        # TODO Replace this with yt-dlp call.
         filename = self.title + ".ts"
 
         with requests_cache.disabled():
@@ -38,19 +47,23 @@ class SbsVideoNode(Node):
 
         return download_hls(filename, video_url)
 
-class SbsNavNode(Node):
-    def create_video_node(self, entry_data):
-        SbsVideoNode(entry_data["title"], self, entry_data["id"])
+class SbsIndexNode(AbstractNode):
+    """SBS navigation node."""
+    # TODO Fix annotation.
+    def create_video_node(self, entry_data: Any) -> None:
+        SbsMediaNode(entry_data["title"], self, entry_data["id"])
 
-    def find_existing_child(self, path):
+    def find_existing_child(self, path: str) -> AbstractNode | None:
         for child in self.children:
             if child.title == path:
                 return child
+        
+        return None
 
-class SbsRootNode(SbsNavNode):
-    def __init__(self, parent: Node):
-        """Initialise SBS root."""
-        super().__init__("SBS", parent)
+class SbsRootNode(SbsIndexNode):
+    """Root node for SBS tree."""
+
+    # __init__ from super class. Handle in pydantic in future.
 
     def _fill_children(self):
         all_video_entries = self.load_all_video_entries()
@@ -138,5 +151,5 @@ class SbsRootNode(SbsNavNode):
         current_path = category_path[0]
         current_node = parent.find_existing_child(current_path)
         if not current_node:
-            current_node = SbsNavNode(current_path, parent)
+            current_node = SbsIndexNode(current_path, parent)
         return self.create_nav_node(current_node, category_path[1:])

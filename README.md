@@ -1,5 +1,5 @@
 <!---
-cspell:ignore Autograbber
+cspell:ignore Autograbber webdl delx pypi pydantic
 --->
 
 # TODO
@@ -22,7 +22,7 @@ based on the reasoning that it is the most actively developed downloader, so it 
 makes sense to use it, especially as any updates to downloaders with WebDL will end up
 largely re-implementing yt-dlp code anyway (I'd prefer to cut out the middleman).
 
-# Ugrading from OG WebDL
+# Upgrading from OG WebDL
 
 ## Autograbber
 
@@ -42,6 +42,10 @@ long you have kept your home rolled setup running! and b) renaming the file to
 - Convert to a src based library and commit to pypi.
 - Add annotations.
 - Convert downloader method calls to external yt-dlp calls.
+- Convert Node class to pydantic BaseModel. Should make loading json a lot simpler.
+Pretty sure pydantic's inheritance is strong enough to make this relatively easy.
 - Get 10Play back online.
-- ~~Removed backwards compatibility with old autograbber argument format (pattern
-file must now appear in each directory).~~
+- ~~Removed backwards compatibility with old autograbber argument format (pattern~~
+~~file must now appear in each directory).~~
+
+

@@ -1,138 +1,204 @@
 #!/usr/bin/env python3
+# cspell:ignore iview webdl
 """Provides media nodes for ABC iView."""
 
 import string
 import time
 import hashlib
 import hmac
+
+# TODO eliminate if possible.
+from typing import Any
 import requests_cache
 
-from node import Node
+from node import AbstractNode
 from common import append_to_qs, grab_json, grab_text, download_hls
-
 
 BASE_URL = "https://iview.abc.net.au"
 API_URL = "https://iview.abc.net.au/api"
 
-def format_episode_title(series, ep):
-    if ep:
-        return series + " " + ep
-    else:
-        return series
 
-def add_episode(parent, ep_info):
-    video_key = ep_info["episodeHouseNumber"]
-    series_title = ep_info["seriesTitle"]
-    title = ep_info.get("title", None)
-    episode_title = format_episode_title(series_title, title)
+class IViewMediaNode(AbstractNode):
+    """Downloadable iView media Node."""
 
-    IviewEpisodeNode(episode_title, parent, video_key)
+    # In future, provide these by pydantic BaseModel.
+    video_key: str
 
-class IviewEpisodeNode(Node):
-    def __init__(self, title, parent, video_key):
-        Node.__init__(self, title, parent)
+    # TODO Eliminate __init__ when converting to pydantic.
+    def __init__(self, title: str, parent: AbstractNode, video_key: str) -> None:
+        """Initialise iView media node."""
+        super().__init__(title, parent)
         self.video_key = video_key
+
+        # TODO These two need to be done in the pydantic post_init.
         self.filename = title + ".ts"
         self.can_download = True
 
-    def find_hls_url(self, playlist):
+    def _fill_children(self) -> None:
+        """Load child nodes."""
+        # Downloadable leaf. No children.
+        self._children = []
+
+    # TODO fix JSON annotation if we need to keep playlist info.
+    def find_hls_url(self, playlist: Any) -> str:
+        """Find hls."""
+        # TODO Replace with yt-dlp external call.
         for video in playlist:
             if video["type"] in ["program", "livestream"]:
                 streams = video["streams"]["hls"]
                 for quality in ["720", "sd", "sd-low"]:
                     if quality in streams:
                         return streams[quality]
-        raise Exception("Missing program stream for " + self.video_key + " -- " + self.title)
+        raise RuntimeError(
+            "Missing program stream for " + self.video_key + " -- " + self.title
+        )
 
-    def get_auth_token(self):
-        path = "/auth/hls/sign?ts=%s&hn=%s&d=android-tablet" % (int(time.time()), self.video_key)
-        sig = hmac.new(b'android.content.res.Resources', path.encode("utf-8"), hashlib.sha256).hexdigest()
+    def get_auth_token(self) -> str:
+        """Get auth token."""
+        # TODO Replace with yt-dlp external call? May still be needed.
+        path = "/auth/hls/sign?ts=%s&hn=%s&d=android-tablet" % (
+            int(time.time()),
+            self.video_key,
+        )
+        sig = hmac.new(
+            b"android.content.res.Resources", path.encode("utf-8"), hashlib.sha256
+        ).hexdigest()
         auth_url = BASE_URL + path + "&sig=" + sig
         with requests_cache.disabled():
             auth_token = grab_text(auth_url)
         return auth_token
 
-    def download(self):
+    def download(self) -> bool:
+        """Download media file (returns True on success)."""
+        # TODO Replace/update with yt-dlp call.
         info = grab_json(API_URL + "/programs/" + self.video_key)
         if "playlist" not in info:
             return False
         video_url = self.find_hls_url(info["playlist"])
         auth_token = self.get_auth_token()
-        video_url = append_to_qs(video_url, {"hdnea": auth_token})
+        video_url = append_to_qs(
+            video_url, {"hdnea": auth_token}  # cspell:disable-line
+        )
         return download_hls(self.filename, video_url)
 
 
-class IviewIndexNode(Node):
-    def __init__(self, title, parent, url):
-        Node.__init__(self, title, parent)
-        self.url = url
-        self.unique_series = set()
+class IviewIndexNode(AbstractNode):
+    """General iView navigation node."""
 
-    def _fill_children(self):
+    url: str
+    # TODO Check unique series initialisation when converting to pydantic.
+    # TODO Clean up implementation of unique_series?
+    unique_series: set[str] = set()
+
+    # TODO Eliminate __init__ when converting to pydantic.
+    def __init__(self, title: str, parent: AbstractNode, url: str) -> None:
+        """Initialise iView index node."""
+        super().__init__(title, parent)
+        self.url = url
+
+    def _fill_children(self) -> None:
+        """Create list of children."""
+        self._children = []
         info = grab_json(self.url)
         for key in ["carousels", "collections", "index"]:
             for collection_list in info.get(key, None):
                 if isinstance(collection_list, dict):
                     for ep_info in collection_list.get("episodes", []):
-                        self.add_series(ep_info)
+                        title = ep_info["seriesTitle"]
+                        if title in self.unique_series:
+                            # Already added.
+                            continue
+                        self.unique_series.add(title)
+                        url = API_URL + "/" + ep_info["href"]
+                        self._children.append(
+                            IViewMediaContainerNode(
+                                title, self, url, series_container=True
+                            )
+                        )
 
-    def add_series(self, ep_info):
-        title = ep_info["seriesTitle"]
-        if title in self.unique_series:
-            return
-        self.unique_series.add(title)
-        url = API_URL + "/" + ep_info["href"]
-        IviewSeriesNode(title, self, url)
 
-class IviewSeriesNode(Node):
-    def __init__(self, title, parent, url):
-        Node.__init__(self, title, parent)
+class IViewMediaContainerNode(AbstractNode):
+    """Container Node for series and "flat" collections like "Featured"."""
+
+    # In future, provide these by pydantic BaseModel.
+    url: str
+    # If have more than one type, make this an enum.
+    # for iView, we have series and thing things like the featured page.
+    series_container: bool
+
+    # TODO Eliminate __init__ when converting to pydantic.
+    def __init__(
+        self, title: str, parent: AbstractNode, url: str, series_container: bool
+    ) -> None:
+        """Initialise iView container node."""
+        super().__init__(title, parent)
         self.url = url
+        self.series_container = series_container
 
-    def _fill_children(self):
-        ep_info = grab_json(self.url)
-        series_slug = ep_info["href"].split("/")[1]
-        series_url = API_URL + "/series/" + series_slug + "/" + ep_info["seriesHouseNumber"]
-        info = grab_json(series_url)
-        for ep_info in info.get("episodes", []):
-            add_episode(self, ep_info)
+    def _fill_children(self) -> None:
+        """Create container node children."""
+        if self.series_container:
+            # Most typical container for iView media Nodes.
+            series_info = grab_json(self.url)
+            series_slug = series_info["href"].split("/")[1]
+            series_url = (
+                API_URL
+                + "/series/"
+                + series_slug
+                + "/"
+                + series_info["seriesHouseNumber"]
+            )
+            episodes_list = grab_json(series_url).get("episodes", [])
+        else:
+            # Dealing with something like the features page.
+            # Previously an IViewFlatNode in OG webdl.
+            # Which turns out to be much simpler
+            episodes_list = grab_json(self.url)
 
-class IviewFlatNode(Node):
-    def __init__(self, title, parent, url):
-        Node.__init__(self, title, parent)
-        self.url = url
+        self._children = []
+        for episode in episodes_list:
+            video_key = episode["episodeHouseNumber"]
+            series_title = episode["seriesTitle"]
+            episode_title = episode.get("title", None)
 
-    def _fill_children(self):
-        info = grab_json(self.url)
-        for ep_info in info:
-            add_episode(self, ep_info)
+            if episode_title:
+                episode_title = series_title + " " + episode_title
+            else:
+                # How it's done on the Featured page.
+                episode_title = series_title
+
+            self._children.append(IViewMediaNode(episode_title, self, video_key))
 
 
-class IviewRootNode(Node):
-    def __init__(self, parent: Node) -> None:
-        """Initialise ABC iview root."""
-        super().__init__("ABC iView", parent)
+class IViewCategoryContainerNode(AbstractNode):
+    """iView category container class."""
 
-    def load_categories(self):
-        by_category_node = Node("By Category", self)
-
+    def _fill_children(self) -> None:
+        """Fill iView category nodes."""
         data = grab_json(API_URL + "/categories")
         categories = data["categories"]
 
+        self._children = []
         for category_data in categories:
             category_title = category_data["title"]
             category_title = string.capwords(category_title)
 
             category_href = category_data["href"]
 
-            IviewIndexNode(category_title, by_category_node, API_URL + "/" + category_href)
+            self._children.append(
+                IviewIndexNode(category_title, self, API_URL + "/" + category_href)
+            )
 
-    def load_channels(self):
-        by_channel_node = Node("By Channel", self)
 
+class IViewChannelContainerNode(AbstractNode):
+    """Container node for channels."""
+
+    def _fill_children(self) -> None:
+        """Create channel children nodes."""
         data = grab_json(API_URL + "/channel")
         channels = data["channels"]
 
+        self._children = []
         for channel_data in channels:
             channel_id = channel_data["categoryID"]
             channel_title = {
@@ -146,12 +212,23 @@ class IviewRootNode(Node):
 
             channel_href = channel_data["href"]
 
-            IviewIndexNode(channel_title, by_channel_node, API_URL + "/" + channel_href)
+            self._children.append(
+                IviewIndexNode(
+                    channel_title, self, API_URL + "/" + channel_href
+                )
+            )
 
-    def load_featured(self):
-        IviewFlatNode("Featured", self, API_URL + "/featured")
 
-    def _fill_children(self):
-        self.load_categories()
-        self.load_channels()
-        self.load_featured()
+class IViewRootNode(AbstractNode):
+    """Root node for iView tree."""
+
+    # __init__ from super class. Handle in pydantic in future.
+
+    def _fill_children(self) -> None:
+        self._children = [
+            IViewCategoryContainerNode("By Category", self),
+            IViewChannelContainerNode("By Channel", self),
+            IViewMediaContainerNode(
+                "Featured", self, API_URL + "/featured", series_container=False
+            ),
+        ]

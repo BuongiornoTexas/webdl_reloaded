@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
-# cspell:ignore rsrtools
+# cspell:ignore rsrtools autograbber
 """A simple interactive system for selecting and downloading FTA media."""
+
 from typing import cast
-from node import Node
+from node import AbstractNode
 from common import natural_sort
-from node_fta_services import FTAServices
+from node_services import ServiceProviders
 
 
-def choose(options: list[tuple[str, Node]], allow_multi: bool) -> None | list[Node]:
+def choose(
+    options: list[tuple[str, AbstractNode]], allow_multi: bool
+) -> None | list[AbstractNode]:
     """Provide a very basic interactive text menu system for user input."""
     # TODO: Upgrade with enhanced choose from sleeper_service/rsrtools.
     #       Right now I've made typing consistent with way choose is applied.
@@ -18,7 +21,7 @@ def choose(options: list[tuple[str, Node]], allow_multi: bool) -> None | list[No
         # Create the selection menu.
         print(f"{i+1:4}) {key}")
         reverse_map[i + 1] = value
-    print("  0) Back")
+    print("   0) Back")
     while True:
         try:
             str_values = input("Choose> ").split()
@@ -36,19 +39,24 @@ def choose(options: list[tuple[str, Node]], allow_multi: bool) -> None | list[No
                     values.extend(range(int(low), int(high) + 1))
             ret_values = [
                 # Generate selection from integer indices.
-                reverse_map[value] for value in values if value in reverse_map
+                reverse_map[value]
+                for value in values
+                if value in reverse_map
             ]
             if allow_multi or len(ret_values) == 1:
                 return ret_values
 
-        except (ValueError, IndexError):
+        except ValueError, IndexError:
             print("Invalid input, please try again")
 
 
 def main() -> None:
     """Provide interactive selection for media downloads."""
-    node = cast(Node, FTAServices())
+    node = cast(AbstractNode, ServiceProviders())
 
+    # Keep track of where we are in the tree with an array (autograbber does
+    # this with recursion).
+    node_path: list[AbstractNode] = []
     while True:
         menu_options = []
         download_enabled = True
@@ -62,11 +70,13 @@ def main() -> None:
         # select multiples (download_enabled == True enables multi-select).
         selected_nodes = choose(menu_options, allow_multi=download_enabled)
         if selected_nodes is None:
-            if node.parent is not None:
-                node = node.parent
-            else:
+            if len(node_path) == 0:
+                # At the root node. Nothing more to do.
                 break
+            # Otherwise, move one node closet to the root and continue.
+            node = node_path.pop()
         elif download_enabled:
+            # Don't need to do anything with the node path.
             for n in selected_nodes:
                 if not n.download():
                     input("Press return to continue...\n")
@@ -74,6 +84,8 @@ def main() -> None:
             if len(selected_nodes) != 1:
                 # Should only return 1 node selection if not downloading.
                 raise IndexError("Unexpected multiple index/root nodes returned.")
+            # push current node onto path and make selected node active.
+            node_path.append(node)
             node = selected_nodes[0]
 
 
@@ -81,5 +93,5 @@ if __name__ == "__main__":
     # TODO Implement arg_parser and options file.
     try:
         main()
-    except (KeyboardInterrupt, EOFError):
+    except KeyboardInterrupt, EOFError:
         print("\nExiting...")
