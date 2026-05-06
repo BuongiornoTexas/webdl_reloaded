@@ -47,5 +47,7 @@ Pretty sure pydantic's inheritance is strong enough to make this relatively easy
 - Get 10Play back online.
 - ~~Removed backwards compatibility with old autograbber argument format (pattern~~
 ~~file must now appear in each directory).~~
+- Lint all files properly after cleanup.
 
+TODO Next
 

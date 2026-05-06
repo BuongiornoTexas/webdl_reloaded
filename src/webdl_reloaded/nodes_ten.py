@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
+# cspell:ignore webdl
 """Provides media nodes for 10Play."""
 
 import logging
 from typing import Any
-from node import AbstractNode
-from common import grab_json, download_hls, append_to_qs
+
+from webdl_reloaded.node import AbstractNode
+from webdl_reloaded.common import grab_json, download_hls, append_to_qs
 
 SERIES_LIST_URL = "https://vod.ten.com.au/config/android-v4"
 SERIES_DETAIL_URL = "https://v.tenplay.com.au/api/videos/bcquery"
-
+logger = logging.getLogger(__name__)
 
 class TenMediaNode(AbstractNode):
     def __init__(self, title: str, video_url: str) -> None:
@@ -77,7 +79,7 @@ class TenMediaContainerNode(AbstractNode):
         if video_id in self.video_ids:
             return
         if tv_show != self.expected_tv_show:
-            logging.warning(
+            logger.warning(
                 "Skipping unexpected video: %s != %s", tv_show, self.expected_tv_show
             )
             return

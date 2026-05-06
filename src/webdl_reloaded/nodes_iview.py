@@ -11,8 +11,8 @@ import hmac
 from typing import Any
 import requests_cache
 
-from node import AbstractNode
-from common import append_to_qs, grab_json, grab_text, download_hls
+from webdl_reloaded.node import AbstractNode
+from webdl_reloaded.common import append_to_qs, grab_json, grab_text, download_hls
 
 BASE_URL = "https://iview.abc.net.au"
 API_URL = "https://iview.abc.net.au/api"
@@ -88,12 +88,15 @@ class IviewIndexNode(AbstractNode):
     url: str
     # TODO Check unique series initialisation when converting to pydantic.
     # TODO Clean up implementation of unique_series?
-    unique_series: set[str] = set()
+    unique_series: set[str]
 
     # TODO Eliminate __init__ when converting to pydantic.
     def __init__(self, title: str, url: str) -> None:
         """Initialise iView index node."""
         super().__init__(title)
+        # TODO Maybe this can be converted to a class variable to minimise duplicate
+        # nodes.
+        self.unique_series = set()
         self.url = url
 
     def _fill_children(self) -> None:

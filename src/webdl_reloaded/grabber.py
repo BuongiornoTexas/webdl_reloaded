@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-# cspell:ignore rsrtools autograbber
+# cspell:ignore rsrtools autograbber webdl
 """A simple interactive system for selecting and downloading FTA media."""
 
 from typing import cast
-from node import AbstractNode
-from common import natural_sort
-from node_services import ServiceProviders
+
+from webdl_reloaded.node import AbstractNode
+from webdl_reloaded.node_services import ServiceProviders
+from webdl_reloaded.common import natural_sort
 
 
 def choose(

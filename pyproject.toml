@@ -22,7 +22,11 @@ dependencies = [
     "lxml",
     "requests",
     "requests-cache",
+    "pydantic"
 ]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/webdl_reloaded"]
 
 [project.urls]
 "Homepage" = "https://github.com/BuongiornoTexas/webdl_reloaded"

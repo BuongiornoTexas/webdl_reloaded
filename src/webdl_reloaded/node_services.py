@@ -18,17 +18,16 @@ general index node.
 no children.
 """
 
-from node import AbstractNode
-from nodes_iview import IViewRootNode
+from webdl_reloaded.node import AbstractNode
+from webdl_reloaded.nodes_iview import IViewRootNode
 
-# from nodes_sbs import SbsRootNode
-from nodes_ten import TenRootNode
+from webdl_reloaded.nodes_sbs import SbsRootNode
+from webdl_reloaded.nodes_ten import TenRootNode
 
 # Each new service needs to be added here and called in _fill_children
 SERVICE_PROVIDERS: dict[str, type[AbstractNode]] = {
     "ABC iView": IViewRootNode,
-    # SBS is fully broken at the moment.
-    # "SBS": SbsRootNode,
+    "SBS": SbsRootNode,
     # Ten is not browseable past the root node.
     "Ten": TenRootNode,
 }

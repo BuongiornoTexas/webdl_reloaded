@@ -8,8 +8,9 @@ import sys
 from os import chdir
 from pathlib import Path
 from fnmatch import fnmatch
-from node import AbstractNode
-from node_services import ServiceProviders
+
+from webdl_reloaded.node import AbstractNode
+from webdl_reloaded.node_services import ServiceProviders
 
 HISTORY_FILENAME = ".history.txt"
 PATTERN_FILENAME = ".patterns.txt"
@@ -23,14 +24,17 @@ logger = logging.getLogger(LOGGER)
 class DownloadList:
     """Class to manage download history and download exclusions."""
 
-    exclude_list: set = set()
-    seen_list: set = set()
+    exclude_list: set[str]
+    seen_list: set[str]
 
     def __init__(self) -> None:
         """Initialise instance, read download history and exclusions."""
         self._load_exclude_list()
 
         self._load_history_file()
+
+        self.exclude_list = set()
+        self.seen_list = set()
 
     def _load_exclude_list(self) -> None:
         """Load exclusion list."""

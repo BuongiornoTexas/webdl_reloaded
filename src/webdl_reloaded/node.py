@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 # cspell:ignore delx webdl
 """Abstract Node base class for the tree of streaming services and their catalogues."""
+
 from abc import ABC, abstractmethod
-from common import natural_sort
+
+from webdl_reloaded.common import natural_sort
 
 
 class AbstractNode(ABC):
@@ -16,14 +18,17 @@ class AbstractNode(ABC):
     # but not vice versa. I'm believe this will simplify handling of Nodes with
     # multiple parents - e.g. a series in multiple genres has only one instance, with
     # each genre keeping track of it as a child.
-    _children: list[AbstractNode] | None = None
-    can_download: bool = False
+    _children: list[AbstractNode] | None
+    can_download: bool
 
     def __init__(self, title: str) -> None:
         """Initialise Node."""
         # Original webdl made child responsible for tracking its parent. I've
         # removed this and made parents responsible for tracking their children.
         self.title = title
+
+        self._children = None
+        self.can_download = False
 
     @property
     def children(self) -> list[AbstractNode]:
@@ -60,12 +65,13 @@ class AbstractNode(ABC):
         # Downloadable leaf node should create self.children[] (empty list)
         raise NotImplementedError
 
-    # add_child disabled for now, as children should be created in _fill_children
-    # def add_child(self, child: AbstractNode) -> None:
-    #    """Add child to the list of children."""
-    #    if self._children is None:
-    #        self._children = []
-    #    self._children.append(child)
+    def add_child(self, child: AbstractNode) -> None:
+        """Add child to the list of children."""
+        # Add child re-enabled as it enables implementation of grandchildren nodes
+        # for some cases.
+        if self._children is None:
+            self._children = []
+        self._children.append(child)
 
     def download(self) -> bool:
         """Download file if possible.
@@ -74,4 +80,7 @@ class AbstractNode(ABC):
         raise RunTimeError. Downloadable nodes should a) implement the download and
         return True on success and b) set the self.can_download flag to True.
         """
-        raise RuntimeError(f"Node {self.title} is not downloadable.")
+        raise RuntimeError(
+            f"Node '{self.title}' is not downloadable"
+            f"  (download implementation missing?)."
+        )

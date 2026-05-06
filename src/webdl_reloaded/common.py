@@ -37,11 +37,12 @@ except ImportError:
 
 
 logging.basicConfig(
-    # Reverted to default pythong log format.
+    # Reverted to default python log format.
     # format="%(levelname)s %(message)s",
     level=logging.INFO if os.environ.get("DEBUG", None) is None else logging.DEBUG,
     stream=sys.stdout,
 )
+logger = logging.getLogger(__name__)
 
 CACHE_FILE = os.path.join(
     os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~/.cache")),
@@ -70,14 +71,14 @@ http_session.headers["User-Agent"] = USER_AGENT
 
 
 def grab_text(url):
-    logging.debug("grab_text(%r)", url)
+    logger.debug("grab_text(%r)", url)
     request = http_session.prepare_request(requests.Request("GET", url))
     response = http_session.send(request)
     return response.text
 
 
 def grab_xml(url):
-    logging.debug("grab_xml(%r)", url)
+    logger.debug("grab_xml(%r)", url)
     request = http_session.prepare_request(requests.Request("GET", url))
     response = http_session.send(request)
     doc = lxml.etree.parse(
@@ -89,26 +90,26 @@ def grab_xml(url):
 
 
 def grab_json(url):
-    logging.debug("grab_json(%r)", url)
+    logger.debug("grab_json(%r)", url)
     request = http_session.prepare_request(requests.Request("GET", url))
     response = http_session.send(request)
     return response.json()
 
 
 def exec_subprocess(cmd):
-    logging.debug("Executing: %s", cmd)
+    logger.debug("Executing: %s", cmd)
     try:
         p = subprocess.Popen(cmd)
         ret = p.wait()
         if ret != 0:
-            logging.error("%s exited with error code: %s", cmd[0], ret)
+            logger.error("%s exited with error code: %s", cmd[0], ret)
             return False
         else:
             return True
     except OSError as e:
-        logging.error("Failed to run: %s -- %s", cmd[0], e)
+        logger.error("Failed to run: %s -- %s", cmd[0], e)
     except KeyboardInterrupt:
-        logging.info("Cancelled: %s", cmd)
+        logger.info("Cancelled: %s", cmd)
         try:
             p.terminate()
             p.wait()
@@ -136,7 +137,7 @@ def get_duration(filename):
         if duration.isdigit():
             return int(duration)
 
-    logging.debug("Falling back to full decode to find duration: %s % filename")
+    logger.debug("Falling back to full decode to find duration: %s % filename")
 
     cmd = [
         "ffmpeg",
@@ -168,7 +169,7 @@ def check_video_durations(flv_filename, mp4_filename):
     mp4_duration = get_duration(mp4_filename)
 
     if abs(flv_duration - mp4_duration) > 1:
-        logging.error(
+        logger.error(
             "The duration of %s is suspicious, did the remux fail? Expected %s == %s",
             mp4_filename,
             flv_duration,
@@ -185,7 +186,7 @@ def remux(infile, outfile):
     print("remux has been disabled - use handbrake")
     return True
 
-    logging.info("Converting %s to mp4", infile)
+    logger.info("Converting %s to mp4", infile)
 
     cmd = [
         "ffmpeg",
@@ -231,7 +232,7 @@ def convert_to_mp4(filename) -> bool:
 def download_hls(filename, video_url):
     filename = sanify_filename(filename)
     video_url = "hlsvariant://" + video_url
-    logging.info("Downloading: %s", filename)
+    logger.info("Downloading: %s", filename)
 
     cmd = [
         "streamlink",
