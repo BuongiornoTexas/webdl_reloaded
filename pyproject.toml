@@ -22,7 +22,9 @@ dependencies = [
     "lxml",
     "requests",
     "requests-cache",
-    "pydantic"
+    "tomli-w",
+    "pydantic",
+    "pydantic-settings",
 ]
 
 [tool.hatch.build.targets.wheel]

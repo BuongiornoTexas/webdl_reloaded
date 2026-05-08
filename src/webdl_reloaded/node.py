@@ -4,7 +4,7 @@
 
 from abc import ABC, abstractmethod
 
-from webdl_reloaded.common import natural_sort
+from webdl_reloaded.common import natural_sort, WebDLPaths
 
 
 class AbstractNode(ABC):
@@ -73,7 +73,7 @@ class AbstractNode(ABC):
             self._children = []
         self._children.append(child)
 
-    def download(self) -> bool:
+    def download(self, paths: WebDLPaths) -> bool:
         """Download file if possible.
 
         Most Nodes are not downloadable, so the default implementation is a to

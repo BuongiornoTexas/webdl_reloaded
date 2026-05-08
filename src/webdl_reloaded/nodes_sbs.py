@@ -7,12 +7,12 @@ from time import sleep
 
 # TODO Sort out JSON annotation and remove ANY
 from typing import Any, Optional
-import requests_cache
 
 from pydantic import BaseModel
 
 from webdl_reloaded.node import AbstractNode
-from webdl_reloaded.common import append_to_qs, grab_json
+from webdl_reloaded.common import append_to_query_string
+from webdl_reloaded.old_common import grab_json
 
 logger = logging.getLogger(__name__)
 
@@ -177,7 +177,9 @@ class SBSTypeNode(AbstractNode):
         """Fetch collection catalogue items as a JSON list."""
         items = []
         # First call, ask for max limit on items.
-        url = append_to_qs(COLLECTION_URL + self.collection, {"limit": f"{MAX_ITEMS}"})
+        url = append_to_query_string(COLLECTION_URL + self.collection, {
+            "limit": f"{MAX_ITEMS}"
+        })
         while True:
             data = grab_json(url)
             items.extend(data["items"])
@@ -187,7 +189,9 @@ class SBSTypeNode(AbstractNode):
             # Don't hammer the API
             sleep(0.2)
             # Set up next batch
-            url = append_to_qs(COLLECTION_URL + self.collection, {"cursor": cursor})
+            url = append_to_query_string(
+                COLLECTION_URL + self.collection, {"cursor": cursor}
+            )
 
         expect_count = int(data["meta"]["total"])
         return (expect_count, items)

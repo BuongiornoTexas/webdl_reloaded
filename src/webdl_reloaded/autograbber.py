@@ -29,12 +29,12 @@ class DownloadList:
 
     def __init__(self) -> None:
         """Initialise instance, read download history and exclusions."""
+        self.exclude_list = set()
+        self.seen_list = set()
+
         self._load_exclude_list()
 
         self._load_history_file()
-
-        self.exclude_list = set()
-        self.seen_list = set()
 
     def _load_exclude_list(self) -> None:
         """Load exclusion list."""

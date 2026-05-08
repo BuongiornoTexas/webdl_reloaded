@@ -5,8 +5,10 @@
 import logging
 from typing import Any
 
+from webdl_reloaded.common import append_to_query_string, WebDLPaths
 from webdl_reloaded.node import AbstractNode
-from webdl_reloaded.common import grab_json, download_hls, append_to_qs
+from webdl_reloaded.old_common import grab_json, download_hls
+
 
 SERIES_LIST_URL = "https://vod.ten.com.au/config/android-v4"
 SERIES_DETAIL_URL = "https://v.tenplay.com.au/api/videos/bcquery"
@@ -23,7 +25,7 @@ class TenMediaNode(AbstractNode):
         # Downloadable leaf. No children.
         self._children = []
 
-    def download(self) -> bool:
+    def download(self, paths: WebDLPaths) -> bool:
         filename = self.title + ".ts"
         return download_hls(filename, self.video_url)
 
@@ -58,7 +60,7 @@ class TenMediaContainerNode(AbstractNode):
     # TODO Fix up annotations if we keep this.
     def get_page_url(self, query: Any, page_number: Any) -> Any:
         return (
-            append_to_qs(
+            append_to_query_string(
                 SERIES_DETAIL_URL,
                 {
                     "command": "search_videos",

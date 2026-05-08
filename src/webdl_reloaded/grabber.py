@@ -4,9 +4,9 @@
 
 from typing import cast
 
+from webdl_reloaded.common import natural_sort, process_args
 from webdl_reloaded.node import AbstractNode
 from webdl_reloaded.node_services import ServiceProviders
-from webdl_reloaded.common import natural_sort
 
 
 def choose(
@@ -53,6 +53,19 @@ def choose(
 
 def main() -> None:
     """Provide interactive selection for media downloads."""
+    settings = process_args()
+
+    paths = None
+    for paths in settings.webdl_paths():
+        # grabber downloads to the first available path.
+        break
+    if not paths:
+        print(
+            "No target directory found check command line and 'webdl.toml'. "
+        )
+        print("Exiting.")
+        return
+
     node = cast(AbstractNode, ServiceProviders("Services"))
 
     # Keep track of where we are in the tree with an array (autograbber does
@@ -79,7 +92,7 @@ def main() -> None:
         elif download_enabled:
             # Don't need to do anything with the node path.
             for n in selected_nodes:
-                if not n.download():
+                if not n.download(paths):
                     input("Press return to continue...\n")
         else:
             if len(selected_nodes) != 1:
@@ -91,7 +104,6 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    # TODO Implement arg_parser and options file.
     try:
         main()
     except KeyboardInterrupt, EOFError:

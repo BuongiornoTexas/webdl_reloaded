@@ -11,8 +11,9 @@ import hmac
 from typing import Any
 import requests_cache
 
+from webdl_reloaded.common import append_to_query_string, WebDLPaths
 from webdl_reloaded.node import AbstractNode
-from webdl_reloaded.common import append_to_qs, grab_json, grab_text, download_hls
+from webdl_reloaded.old_common import grab_json, grab_text, download_hls
 
 BASE_URL = "https://iview.abc.net.au"
 API_URL = "https://iview.abc.net.au/api"
@@ -68,7 +69,7 @@ class IViewMediaNode(AbstractNode):
             auth_token = grab_text(auth_url)
         return auth_token
 
-    def download(self) -> bool:
+    def download(self, paths: WebDLPaths) -> bool:
         """Download media file (returns True on success)."""
         # TODO Replace/update with yt-dlp call.
         info = grab_json(API_URL + "/programs/" + self.video_key)
@@ -76,7 +77,7 @@ class IViewMediaNode(AbstractNode):
             return False
         video_url = self.find_hls_url(info["playlist"])
         auth_token = self.get_auth_token()
-        video_url = append_to_qs(
+        video_url = append_to_query_string(
             video_url, {"hdnea": auth_token}  # cspell:disable-line
         )
         return download_hls(self.filename, video_url)
