@@ -55,11 +55,11 @@ def main() -> None:
     """Provide interactive selection for media downloads."""
     settings = process_args()
 
-    paths = None
-    for paths in settings.webdl_paths():
+    path_info = None
+    for path_info in settings.webdl_paths():
         # grabber downloads to the first available path.
         break
-    if not paths:
+    if not path_info:
         print(
             "No target directory found check command line and 'webdl.toml'. "
         )
@@ -92,7 +92,7 @@ def main() -> None:
         elif download_enabled:
             # Don't need to do anything with the node path.
             for n in selected_nodes:
-                if not n.download(paths):
+                if not n.download(path_info):
                     input("Press return to continue...\n")
         else:
             if len(selected_nodes) != 1:

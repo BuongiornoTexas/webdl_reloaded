@@ -3,12 +3,11 @@
 """Implements the batch media downloader (autograbber)."""
 
 import logging
-# TODO Clean up sys import after adding argparser and checking if sys.exit(1) needed.
-import sys
-from os import chdir
+
 from pathlib import Path
 from fnmatch import fnmatch
 
+from webdl_reloaded.common import process_args, WebDLPaths
 from webdl_reloaded.node import AbstractNode
 from webdl_reloaded.node_services import ServiceProviders
 
@@ -24,11 +23,14 @@ logger = logging.getLogger(LOGGER)
 class DownloadList:
     """Class to manage download history and download exclusions."""
 
+    _target_dir_path: Path
+    _history_file: Path
     exclude_list: set[str]
     seen_list: set[str]
 
-    def __init__(self) -> None:
+    def __init__(self, target_dir_path: Path) -> None:
         """Initialise instance, read download history and exclusions."""
+        self._target_dir_path = target_dir_path
         self.exclude_list = set()
         self.seen_list = set()
 
@@ -39,7 +41,8 @@ class DownloadList:
     def _load_exclude_list(self) -> None:
         """Load exclusion list."""
         try:
-            with open(EXCLUDE_FILENAME, "r", encoding=DEFAULT_ENCODING) as exclude:
+            exclusion_file = self._target_dir_path / EXCLUDE_FILENAME
+            with open(exclusion_file, "r", encoding=DEFAULT_ENCODING) as exclude:
                 for line in exclude:
                     self.exclude_list.add(line.strip())
         except FileNotFoundError:
@@ -50,14 +53,17 @@ class DownloadList:
         """Read history file into check list."""
         # Note: removed support for old downloaded_auto.text files.
         try:
-            with open(HISTORY_FILENAME, "r", encoding=DEFAULT_ENCODING) as history:
+            self._history_file = self._target_dir_path / HISTORY_FILENAME
+            with open(self._history_file, "r", encoding=DEFAULT_ENCODING) as history:
                 for line in history:
                     self.seen_list.add(line.strip())
         except FileNotFoundError:
             # No history, so we will create it later.
             pass
         except Exception as exc:
-            logger.error("Error reading history file: %s -- %s.", HISTORY_FILENAME, exc)
+            logger.error(
+                "Error reading history file: %s -- %s.", self._history_file, exc
+            )
             raise
 
     def pending(self, node: AbstractNode) -> bool:
@@ -81,7 +87,7 @@ class DownloadList:
         # This is not efficient, as we add a line at a time. But often
         # won't add any on any given batch run. I'd rather do this than keep a file
         # pointer dangling in the class.
-        with open(HISTORY_FILENAME, "a", encoding=DEFAULT_ENCODING) as history:
+        with open(self._history_file, "a", encoding=DEFAULT_ENCODING) as history:
             history.write(node.title.strip() + "\n")
 
 
@@ -92,11 +98,13 @@ class DownLoader:
     Converted to a class to make calling mechanics and recursion cleaner.
     """
 
-    download_list: DownloadList
+    _download_list: DownloadList
+    _path_info: WebDLPaths
 
-    def __init__(self, download_list: DownloadList) -> None:
+    def __init__(self, path_info: WebDLPaths) -> None:
         """Initialise Downloader."""
-        self.download_list = download_list
+        self._path_info = path_info
+        self._download_list = DownloadList(path_info.target_dir_path)
 
     def download_matches(self, node: AbstractNode, pattern: list[str]) -> None:
         """Perform sanity checks and run the match and download."""
@@ -104,7 +112,7 @@ class DownLoader:
             # No match possible.
             return
 
-        # Do the actual download and match by private.
+        # Do the actual download and match by private method.
         # Note: index should not be specified in this call.
         self._download_matches(node, pattern)
 
@@ -129,12 +137,12 @@ class DownLoader:
         # Node title matches pattern[index]
         if node.can_download:
             # Node is a downloadable leaf.
-            if self.download_list.pending(node):
+            if self._download_list.pending(node):
                 # Node hasn't been downloaded previously, and it's not on the
                 # exclusion list. So we try to download.
-                if node.download():
+                if node.download(self._path_info):
                     # Download succeeded, update history.
-                    self.download_list.add_to_history(node)
+                    self._download_list.add_to_history(node)
                 else:
                     # Download failed, update log.
                     logger.error("Failed to download! '%s'", node.title)
@@ -154,13 +162,11 @@ class DownLoader:
             self._download_matches(child, pattern, child_index)
 
 
-def process_one_dir(dest_dir: Path, pattern_file: Path) -> None:
+def process_dir(path_info: WebDLPaths, pattern_file: Path) -> None:
     """Process the pattern file for a single download directory."""
-    chdir(dest_dir)
-
-    logger.info("Started %s", dest_dir)
+    logger.info("Started %s", path_info.target_dir_path)
     services_root = ServiceProviders("Services")
-    downloader = DownLoader(DownloadList())
+    downloader = DownLoader(path_info)
 
     with open(pattern_file, "r", encoding=DEFAULT_ENCODING) as pattern_fp:
         for line in pattern_fp:
@@ -172,30 +178,11 @@ def process_one_dir(dest_dir: Path, pattern_file: Path) -> None:
             for service in services_root.children:
                 downloader.download_matches(service, pattern)
 
-    logger.info("Finished '%s'", dest_dir)
+    logger.info("Finished '%s'", path_info.target_dir_path)
 
 
-def process_all_directories(download_dirs: list[str]) -> None:
-    """Process each batch directory in turn."""
-    for str_path in download_dirs:
-        target_path = Path(str_path).resolve()
-        logger.info("Checking target directory: '%s'", target_path)
-        if not target_path.is_dir():
-            logger.error("`'%s'` is not a directory. Skipping!", target_path)
-            continue
-
-        pattern_path = target_path / PATTERN_FILENAME
-        if not pattern_path.is_file():
-            logger.error("Pattern file '%s' missing file. Skipping!", pattern_path)
-            continue
-
-        process_one_dir(target_path, pattern_path)
-
-
-if __name__ == "__main__":
-    # TODO Implement arg_parser and options file (store yt-dlp and ffmpeg options!).
-    # TODO Add command line option to specify debug level.
-    # TODO Add command line to specify logfile location.
+def main() -> None:
+    """Run the batch job."""
     # Setup logger. Use force to override the basicConfig setup in common.py.
     # Doing this because autograbber is intended for batch mode and should
     # generate a logfile for after the event troubleshooting.
@@ -210,11 +197,23 @@ if __name__ == "__main__":
         level=logging.INFO,
     )
 
-    if len(sys.argv) <= 1:
-        logger.error("Usage: %s download_dir [download_dir ...]", sys.argv[0])
-        sys.exit(1)
+    settings = process_args()
+
+    # Process each batch directory in turn.
+    for path_info in settings.webdl_paths():
+        pattern_path = path_info.target_dir_path / PATTERN_FILENAME
+        if not pattern_path.is_file():
+            logger.error("Pattern file '%s' missing. Skipping directory!", pattern_path)
+            continue
+
+        process_dir(path_info, pattern_path)
+
+
+if __name__ == "__main__":
+    # TODO Add command line option to specify debug level.
+    # TODO Add command line to specify logfile location.
 
     try:
-        process_all_directories(sys.argv[1:])
+        main()
     except KeyboardInterrupt, EOFError:
         logger.info("\nExiting...")
