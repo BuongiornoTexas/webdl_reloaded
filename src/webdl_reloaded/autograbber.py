@@ -15,9 +15,8 @@ HISTORY_FILENAME = ".history.txt"
 PATTERN_FILENAME = ".patterns.txt"
 EXCLUDE_FILENAME = ".excludes.txt"
 DEFAULT_ENCODING = "utf-8"
-LOGGER = "autograbber"
-LOGFILE = LOGGER + ".log"
-logger = logging.getLogger(LOGGER)
+LOGFILE = "autograbber.log"
+logger = logging.getLogger(__name__)
 
 
 class DownloadList:

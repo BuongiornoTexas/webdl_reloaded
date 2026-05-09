@@ -7,7 +7,7 @@ from typing import Any
 
 from webdl_reloaded.common import append_to_query_string, WebDLPaths
 from webdl_reloaded.node import AbstractNode
-from webdl_reloaded.old_common import grab_json, download_hls
+from webdl_reloaded.old_common import grab_json
 
 
 SERIES_LIST_URL = "https://vod.ten.com.au/config/android-v4"
@@ -17,17 +17,17 @@ logger = logging.getLogger(__name__)
 class TenMediaNode(AbstractNode):
     def __init__(self, title: str, video_url: str) -> None:
         super().__init__(title)
-        self.can_download = True
-        self.video_url = video_url
+
+        # Ten is utterly broken at the moment. If I can't get it working with 
+        # yt-dlp, it's not coming back at. Temporary fix to eliminate old downloader.
+        # TODO Fix 10Play.
+        self._media_url = video_url
 
     def _fill_children(self) -> None:
         """Load child nodes."""
         # Downloadable leaf. No children.
         self._children = []
 
-    def download(self, paths: WebDLPaths) -> bool:
-        filename = self.title + ".ts"
-        return download_hls(filename, self.video_url)
 
 
 class TenMediaContainerNode(AbstractNode):

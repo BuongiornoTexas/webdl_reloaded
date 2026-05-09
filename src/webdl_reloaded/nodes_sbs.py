@@ -73,13 +73,14 @@ class SBSSeries(BaseModel):
 class SBSMediaNode(AbstractNode):
     """Downloadable SBS media node."""
 
-    mpx_media_id: int
-
     def __init__(self, title: str, mpx_media_id: int) -> None:
         """Initialise container node."""
         super().__init__(title)
-        self.mpx_media_id = mpx_media_id
-        self.can_download = True
+
+        # Downloadable, so need non-empty _media_url. For now, just make this
+        # the mpx_media_id. Fix when moving to yt_dlp.
+        # TODO Fix media url for AbstractNode.download().
+        self._media_url = str(mpx_media_id)
 
     def _fill_children(self) -> None:
         self._children = []
@@ -113,7 +114,7 @@ class SBSMediaContainerNode(AbstractNode):
                 for episode in season.episodes:
                     title = (
                         f"{self.title}"
-                        f" S{episode.seasonNumber} E{episode.episodeNumber:02d}"
+                        f" S{episode.seasonNumber}E{episode.episodeNumber:02d}"
                         f" {episode.title}"
                     )
 

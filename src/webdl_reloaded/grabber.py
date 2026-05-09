@@ -66,7 +66,7 @@ def main() -> None:
         print("Exiting.")
         return
 
-    node = cast(AbstractNode, ServiceProviders("Services"))
+    active_node = cast(AbstractNode, ServiceProviders("Services"))
 
     # Keep track of where we are in the tree with an array (autograbber does
     # this with recursion).
@@ -74,9 +74,9 @@ def main() -> None:
     while True:
         menu_options = []
         download_enabled = True
-        for n in node.children:
-            menu_options.append((n.title, n))
-            if not n.can_download:
+        for node in active_node.children:
+            menu_options.append((node.title, node))
+            if not node.can_download:
                 # root or navigation node, not downloadable.
                 download_enabled = False
         menu_options = natural_sort(menu_options, key=lambda x: x[0])
@@ -88,19 +88,19 @@ def main() -> None:
                 # At the root node. Nothing more to do.
                 break
             # Otherwise, move one node closet to the root and continue.
-            node = node_path.pop()
+            active_node = node_path.pop()
         elif download_enabled:
             # Don't need to do anything with the node path.
-            for n in selected_nodes:
-                if not n.download(path_info):
+            for node in selected_nodes:
+                if not node.download(path_info):
                     input("Press return to continue...\n")
         else:
             if len(selected_nodes) != 1:
                 # Should only return 1 node selection if not downloading.
                 raise IndexError("Unexpected multiple index/root nodes returned.")
             # push current node onto path and make selected node active.
-            node_path.append(node)
-            node = selected_nodes[0]
+            node_path.append(active_node)
+            active_node = selected_nodes[0]
 
 
 if __name__ == "__main__":

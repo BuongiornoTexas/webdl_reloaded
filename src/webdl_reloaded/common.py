@@ -54,7 +54,7 @@ class WebDLPaths(NamedTuple):
 
     target_dir_path: Path
     yt_dlp_path: Path
-    yt_dlp_conf_path: Path
+    yt_dlp_conf_path: Path | None
 
 
 def natural_sort(list_to_sort: list[Any], key: Callable | None = None) -> list[Any]:
@@ -246,18 +246,17 @@ class Settings(BaseSettings):
                     self._config_file.parent, YT_DLP_CONFIG_FILE
                 )
             if yt_dlp_conf_path is None:
-                logger.error(
+                logger.info(
                     (
                         "yt-dlp config '%s' not found for target path '%s'."
-                        "\n  Target directory skipped."
-                        "\n  Either 'yt_dlp.conf' must exist in the same directory as"
+                        "\n  yt_dlp will run without config. To use a config file"
+                        "\n  either 'yt_dlp.conf' must exist in the same directory as"
                         "\n  'webdl.toml', or 'allow_target_yt_dlp_conf' must be 'true'"
                         "\n  and 'yt-dlp.conf' must exist in target directory."
                     ),
                     YT_DLP_CONFIG_FILE,
                     target_path,
                 )
-                continue
 
             yield WebDLPaths(
                 target_dir_path=target_path,

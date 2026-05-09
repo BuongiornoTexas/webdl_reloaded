@@ -3,17 +3,9 @@
 """Provides media nodes for ABC iView."""
 
 import string
-import time
-import hashlib
-import hmac
 
-# TODO eliminate if possible.
-from typing import Any
-import requests_cache
-
-from webdl_reloaded.common import append_to_query_string, WebDLPaths
 from webdl_reloaded.node import AbstractNode
-from webdl_reloaded.old_common import grab_json, grab_text, download_hls
+from webdl_reloaded.old_common import grab_json
 
 BASE_URL = "https://iview.abc.net.au"
 API_URL = "https://iview.abc.net.au/api"
@@ -23,75 +15,43 @@ class IViewMediaNode(AbstractNode):
     """Downloadable iView media Node."""
 
     # In future, provide these by pydantic BaseModel.
-    video_key: str
+    _video_key: str
 
-    # TODO Eliminate __init__ when converting to pydantic.
     def __init__(self, title: str, video_key: str) -> None:
         """Initialise iView media node."""
         super().__init__(title)
-        self.video_key = video_key
 
-        # TODO These two need to be done in the pydantic post_init.
-        self.filename = title + ".ts"
-        self.can_download = True
+        self._video_key = video_key
+
+        # Downloadable node, so initialise _media_url with empty string.
+        # See _load_media_url for lazy load implementation.
+        self._media_url = ""
+
+    def _get_media_url(self) -> str:
+        """Return media url. Lazy load if needed."""
+        if self._media_url:
+            # Loaded previously. Return value.
+            return self._media_url
+
+        # Lazy load.
+        info = grab_json(API_URL + "/programs/" + self._video_key)
+        if "href" not in info:
+            return ""
+        return BASE_URL + "/" + info["href"]
 
     def _fill_children(self) -> None:
         """Load child nodes."""
         # Downloadable leaf. No children.
         self._children = []
 
-    # TODO fix JSON annotation if we need to keep playlist info.
-    def find_hls_url(self, playlist: Any) -> str:
-        """Find hls."""
-        # TODO Replace with yt-dlp external call.
-        for video in playlist:
-            if video["type"] in ["program", "livestream"]:
-                streams = video["streams"]["hls"]
-                for quality in ["720", "sd", "sd-low"]:
-                    if quality in streams:
-                        return streams[quality]
-        raise RuntimeError(
-            "Missing program stream for " + self.video_key + " -- " + self.title
-        )
-
-    def get_auth_token(self) -> str:
-        """Get auth token."""
-        # TODO Replace with yt-dlp external call? May still be needed.
-        path = "/auth/hls/sign?ts=%s&hn=%s&d=android-tablet" % (
-            int(time.time()),
-            self.video_key,
-        )
-        sig = hmac.new(
-            b"android.content.res.Resources", path.encode("utf-8"), hashlib.sha256
-        ).hexdigest()
-        auth_url = BASE_URL + path + "&sig=" + sig
-        with requests_cache.disabled():
-            auth_token = grab_text(auth_url)
-        return auth_token
-
-    def download(self, paths: WebDLPaths) -> bool:
-        """Download media file (returns True on success)."""
-        # TODO Replace/update with yt-dlp call.
-        info = grab_json(API_URL + "/programs/" + self.video_key)
-        if "playlist" not in info:
-            return False
-        video_url = self.find_hls_url(info["playlist"])
-        auth_token = self.get_auth_token()
-        video_url = append_to_query_string(
-            video_url, {"hdnea": auth_token}  # cspell:disable-line
-        )
-        return download_hls(self.filename, video_url)
-
 
 class IviewIndexNode(AbstractNode):
     """General iView navigation node."""
 
     url: str
-    # TODO Check unique series initialisation when converting to pydantic.
-    # TODO Clean up implementation of unique_series?
+    # TODO Check and maybe clean up implementation of unique_series?
     unique_series: set[str]
 
-    # TODO Eliminate __init__ when converting to pydantic.
     def __init__(self, title: str, url: str) -> None:
         """Initialise iView index node."""
         super().__init__(title)
@@ -128,7 +88,6 @@ class IViewMediaContainerNode(AbstractNode):
     # for iView, we have series and thing things like the featured page.
     series_container: bool
 
-    # TODO Eliminate __init__ when converting to pydantic.
     def __init__(self, title: str, url: str, series_container: bool) -> None:
         """Initialise iView container node."""
         super().__init__(title)

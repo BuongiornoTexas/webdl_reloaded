@@ -3,8 +3,12 @@
 """Abstract Node base class for the tree of streaming services and their catalogues."""
 
 from abc import ABC, abstractmethod
+import logging
+from subprocess import run as run_sub, SubprocessError
 
 from webdl_reloaded.common import natural_sort, WebDLPaths
+
+logger = logging.getLogger(__name__)
 
 
 class AbstractNode(ABC):
@@ -19,16 +23,50 @@ class AbstractNode(ABC):
     # multiple parents - e.g. a series in multiple genres has only one instance, with
     # each genre keeping track of it as a child.
     _children: list[AbstractNode] | None
-    can_download: bool
+    # Media url has three states.
+    # - None - for non-leaf nodes.
+    # - "" - for leaf nodes that can lazy load media url via _get_media_url
+    # - "<media url>" - leaf node media url after lazy load.
+    # .can_download only check for leaf/non leaf distinction.
+    # ._get_media_url performs lazy load if needed, and must be implemented by
+    # leaf node classes.
+    _media_url: str | None
 
     def __init__(self, title: str) -> None:
         """Initialise Node."""
         # Original webdl made child responsible for tracking its parent. I've
         # removed this and made parents responsible for tracking their children.
         self.title = title
-
         self._children = None
-        self.can_download = False
+        self._media_url = None
+
+    @property
+    def can_download(self) -> bool:
+        """Return True if node is downloadable."""
+        if self._media_url is None:
+            # Non leaf mode, not downloadable.
+            return False
+        # Downloadable leaf node.
+        return True
+
+    def _get_media_url(self) -> str:
+        """Get media url attribute for downloader.
+
+        Should be an empty string for all nodes except downloadable leaf nodes, which
+        should overwrite this method.
+        """
+        # Media url should be None for everything other than downloadable
+        # leaf nodes. AbstractNode provides a default yt-dlp downloader call which the
+        # leaf node should overload/overwrite. This function should lazy load
+        # media url if required.
+        # See iView and SBS for sample leaf node implementations.
+
+        # Most Nodes are not downloadable, and shouldn't call this. But
+        # just in case!
+        raise RuntimeError(
+            f"Node '{self.title}' is not a downloadable node."
+            f"  (_get_media_url() implementation missing?)."
+        )
 
     @property
     def children(self) -> list[AbstractNode]:
@@ -74,13 +112,35 @@ class AbstractNode(ABC):
         self._children.append(child)
 
     def download(self, paths: WebDLPaths) -> bool:
-        """Download file if possible.
+        """Download file, return True on success."""
+        if not self.can_download:
+            # Most Nodes are not downloadable, and shouldn't call this. But
+            # just in case!
+            raise RuntimeError(
+                f"Node '{self.title}' is not a downloadable node."
+                f"  (download implementation missing?)."
+            )
 
-        Most Nodes are not downloadable, so the default implementation is a to
-        raise RunTimeError. Downloadable nodes should a) implement the download and
-        return True on success and b) set the self.can_download flag to True.
-        """
-        raise RuntimeError(
-            f"Node '{self.title}' is not downloadable"
-            f"  (download implementation missing?)."
-        )
+        media_url = self._get_media_url()
+
+        args = [
+            str(paths.yt_dlp_path),
+            "--paths",
+            str(paths.target_dir_path),
+            "--output",
+            f"{self.title}.%(ext)s",
+            media_url,
+        ]
+        if paths.yt_dlp_conf_path:
+            args.append("--config-locations")
+            args.append(str(paths.yt_dlp_conf_path))
+
+        # args.append(media_url)
+
+        try:
+            run_sub(args=args, check=True)
+        except SubprocessError as exc:
+            logger.error("Download of file '%s' failed:\n   %s.", self.title, exc)
+            return False
+
+        return True
