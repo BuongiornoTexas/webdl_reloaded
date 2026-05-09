@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 CATALOGUE_URL = "https://catalogue.pr.sbsod.com/"
 COLLECTION_URL = CATALOGUE_URL + "collections/"
+DOWNLOAD_URL = "https://www.sbs.com.au/ondemand/watch/"
 # As of 5/5/26, max items per catalogue call is 100
 MAX_ITEMS = 100
 # Map media types to SBS collections.
@@ -73,14 +74,28 @@ class SBSSeries(BaseModel):
 class SBSMediaNode(AbstractNode):
     """Downloadable SBS media node."""
 
+    _mpx_media_id: str
+
     def __init__(self, title: str, mpx_media_id: int) -> None:
         """Initialise container node."""
         super().__init__(title)
 
-        # Downloadable, so need non-empty _media_url. For now, just make this
-        # the mpx_media_id. Fix when moving to yt_dlp.
-        # TODO Fix media url for AbstractNode.download().
-        self._media_url = str(mpx_media_id)
+        # Downloadable, so need non-empty _media_url to enable lazy load
+        self._media_url = ""
+
+        # Store for lazy load.
+        self._mpx_media_id = str(mpx_media_id)
+
+    def _get_media_url(self) -> str:
+        """Return media url. Lazy load if needed."""
+        if self._media_url:
+            # Loaded previously. Return value.
+            return self._media_url
+
+        # Much like ABC, it looks as yt-dlp can get everything it needs for SBS from
+        # a simple url (subs, images, etc.), so not much of a lazy load.
+        self._media_url = DOWNLOAD_URL + self._mpx_media_id
+        return self._media_url
 
     def _fill_children(self) -> None:
         self._children = []
