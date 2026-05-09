@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Contains original webdl code still waiting on cleanup. 
+# Contains original webdl code still waiting on cleanup.
 # methods will either be delete or annotated and moved to common.
 
 # TODO Replace os.path with Pathlib

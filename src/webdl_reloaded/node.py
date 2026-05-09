@@ -129,13 +129,12 @@ class AbstractNode(ABC):
             str(paths.target_dir_path),
             "--output",
             f"{self.title}.%(ext)s",
-            media_url,
         ]
         if paths.yt_dlp_conf_path:
             args.append("--config-locations")
             args.append(str(paths.yt_dlp_conf_path))
 
-        # args.append(media_url)
+        args.append(media_url)
 
         try:
             run_sub(args=args, check=True)

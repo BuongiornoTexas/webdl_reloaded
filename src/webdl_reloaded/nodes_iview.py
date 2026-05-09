@@ -7,8 +7,9 @@ import string
 from webdl_reloaded.node import AbstractNode
 from webdl_reloaded.old_common import grab_json
 
-BASE_URL = "https://iview.abc.net.au"
-API_URL = "https://iview.abc.net.au/api"
+BASE_URL = "https://iview.abc.net.au/"
+VIDEO_URL = BASE_URL + "/video/"
+API_URL = "https://iview.abc.net.au/api/"
 
 
 class IViewMediaNode(AbstractNode):
@@ -23,8 +24,8 @@ class IViewMediaNode(AbstractNode):
 
         self._video_key = video_key
 
-        # Downloadable node, so initialise _media_url with empty string.
         # See _load_media_url for lazy load implementation.
+        # Downloadable node, so initialise _media_url with empty string.
         self._media_url = ""
 
     def _get_media_url(self) -> str:
@@ -33,11 +34,17 @@ class IViewMediaNode(AbstractNode):
             # Loaded previously. Return value.
             return self._media_url
 
+        # For ABC, it looks as yt-dlp can get everything it needs from
+        # this url (subs, images, etc.), so not much of a lazy load.
+        self._media_url = VIDEO_URL + self._video_key
+        return self._media_url
+
+        # This is the OG webdl version, which seems like overkill for yt-dlp.
         # Lazy load.
-        info = grab_json(API_URL + "/programs/" + self._video_key)
-        if "href" not in info:
-            return ""
-        return BASE_URL + "/" + info["href"]
+        # info = grab_json(API_URL + "programs/" + self._video_key)
+        # if "href" not in info:
+        #    return ""
+        # return BASE_URL + info["href"]
 
     def _fill_children(self) -> None:
         """Load child nodes."""
@@ -73,7 +80,7 @@ class IviewIndexNode(AbstractNode):
                             # Already added.
                             continue
                         self.unique_series.add(title)
-                        url = API_URL + "/" + ep_info["href"]
+                        url = API_URL + ep_info["href"]
                         self._children.append(
                             IViewMediaContainerNode(title, url, series_container=True)
                         )
@@ -102,7 +109,7 @@ class IViewMediaContainerNode(AbstractNode):
             series_slug = series_info["href"].split("/")[1]
             series_url = (
                 API_URL
-                + "/series/"
+                + "series/"
                 + series_slug
                 + "/"
                 + series_info["seriesHouseNumber"]
@@ -134,7 +141,7 @@ class IViewCategoryContainerNode(AbstractNode):
 
     def _fill_children(self) -> None:
         """Fill iView category nodes."""
-        data = grab_json(API_URL + "/categories")
+        data = grab_json(API_URL + "categories")
         categories = data["categories"]
 
         self._children = []
@@ -145,7 +152,7 @@ class IViewCategoryContainerNode(AbstractNode):
             category_href = category_data["href"]
 
             self._children.append(
-                IviewIndexNode(category_title, API_URL + "/" + category_href)
+                IviewIndexNode(category_title, API_URL + category_href)
             )
 
 
@@ -154,7 +161,7 @@ class IViewChannelContainerNode(AbstractNode):
 
     def _fill_children(self) -> None:
         """Create channel children nodes."""
-        data = grab_json(API_URL + "/channel")
+        data = grab_json(API_URL + "channel")
         channels = data["channels"]
 
         self._children = []
@@ -172,7 +179,7 @@ class IViewChannelContainerNode(AbstractNode):
             channel_href = channel_data["href"]
 
             self._children.append(
-                IviewIndexNode(channel_title, API_URL + "/" + channel_href)
+                IviewIndexNode(channel_title, API_URL + channel_href)
             )
 
 
@@ -186,6 +193,6 @@ class IViewRootNode(AbstractNode):
             IViewCategoryContainerNode("By Category"),
             IViewChannelContainerNode("By Channel"),
             IViewMediaContainerNode(
-                "Featured", API_URL + "/featured", series_container=False
+                "Featured", API_URL + "featured", series_container=False
             ),
         ]
