@@ -4,11 +4,11 @@
 
 # TODO Replace os.path with Pathlib
 import os
-import io
+# import io
 import logging
 import requests
 import requests_cache
-import lxml.etree
+# import lxml.etree
 
 USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/112.0"
 
@@ -52,17 +52,18 @@ def grab_text(url):
     response = http_session.send(request)
     return response.text
 
-
-def grab_xml(url):
-    logger.debug("grab_xml(%r)", url)
-    request = http_session.prepare_request(requests.Request("GET", url))
-    response = http_session.send(request)
-    doc = lxml.etree.parse(
-        io.BytesIO(response.content),
-        lxml.etree.XMLParser(encoding="utf-8", recover=True),
-    )
-    response.close()
-    return doc
+# Disabling this for now, as xml isn't used anywhere in webdl at the moment.
+# Can remove lxml from dependencies while this isn't needed.
+# def grab_xml(url):
+#    logger.debug("grab_xml(%r)", url)
+#    request = http_session.prepare_request(requests.Request("GET", url))
+#    response = http_session.send(request)
+#    doc = lxml.etree.parse(
+#        io.BytesIO(response.content),
+#        lxml.etree.XMLParser(encoding="utf-8", recover=True),
+#    )
+#    response.close()
+#    return doc
 
 
 def grab_json(url):

@@ -111,7 +111,7 @@ class AbstractNode(ABC):
             self._children = []
         self._children.append(child)
 
-    def download(self, paths: WebDLPaths) -> bool:
+    def download(self, paths: WebDLPaths, simulate: bool = False) -> bool:
         """Download file, return True on success."""
         if not self.can_download:
             # Most Nodes are not downloadable, and shouldn't call this. But
@@ -135,6 +135,10 @@ class AbstractNode(ABC):
             args.append(str(paths.yt_dlp_conf_path))
 
         args.append(media_url)
+
+        if simulate:
+            logger.info("Simulated Download: %s", self.title)
+            return False
 
         try:
             run_sub(args=args, check=True)

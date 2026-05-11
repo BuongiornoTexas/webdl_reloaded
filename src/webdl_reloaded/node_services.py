@@ -19,17 +19,16 @@ no children.
 """
 
 from webdl_reloaded.node import AbstractNode
-from webdl_reloaded.nodes_iview import IViewRootNode
-
-from webdl_reloaded.nodes_sbs import SbsRootNode
-from webdl_reloaded.nodes_ten import TenRootNode
+from webdl_reloaded.nodes_iview import IVIEW_ID, IViewRootNode
+from webdl_reloaded.nodes_sbs import SBS_ID, SbsRootNode
+from webdl_reloaded.nodes_ten import TEN_ID, TenRootNode
 
 # Each new service needs to be added here and called in _fill_children
 SERVICE_PROVIDERS: dict[str, type[AbstractNode]] = {
-    "ABC iView": IViewRootNode,
-    "SBS": SbsRootNode,
+    IVIEW_ID: IViewRootNode,
+    SBS_ID: SbsRootNode,
     # Ten is not browseable past the root node.
-    "Ten": TenRootNode,
+    TEN_ID: TenRootNode,
 }
 
 

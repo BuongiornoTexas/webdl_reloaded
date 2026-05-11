@@ -9,7 +9,7 @@ from webdl_reloaded.common import append_to_query_string, WebDLPaths
 from webdl_reloaded.node import AbstractNode
 from webdl_reloaded.old_common import grab_json
 
-
+TEN_ID = "Ten"
 SERIES_LIST_URL = "https://vod.ten.com.au/config/android-v4"
 SERIES_DETAIL_URL = "https://v.tenplay.com.au/api/videos/bcquery"
 logger = logging.getLogger(__name__)

@@ -7,7 +7,7 @@ import logging
 from pathlib import Path
 from fnmatch import fnmatch
 
-from webdl_reloaded.common import process_args, WebDLPaths
+from webdl_reloaded.common import Settings, WebDLPaths
 from webdl_reloaded.node import AbstractNode
 from webdl_reloaded.node_services import ServiceProviders
 
@@ -55,7 +55,8 @@ class DownloadList:
             self._history_file = self._target_dir_path / HISTORY_FILENAME
             with open(self._history_file, "r", encoding=DEFAULT_ENCODING) as history:
                 for line in history:
-                    self.seen_list.add(line.strip())
+                    # Ignore case for title checks.
+                    self.seen_list.add(line.strip().lower())
         except FileNotFoundError:
             # No history, so we will create it later.
             pass
@@ -73,7 +74,7 @@ class DownloadList:
             - Is in the exclusion list (should not be downloaded).
         """
         title = node.title.strip()
-        if title in self.seen_list:
+        if title.lower() in self.seen_list:
             return False
         for exclude in self.exclude_list:
             if fnmatch(title, exclude):
@@ -99,11 +100,13 @@ class DownLoader:
 
     _download_list: DownloadList
     _path_info: WebDLPaths
+    _simulate: bool
 
-    def __init__(self, path_info: WebDLPaths) -> None:
+    def __init__(self, path_info: WebDLPaths, simulate: bool = False) -> None:
         """Initialise Downloader."""
         self._path_info = path_info
         self._download_list = DownloadList(path_info.target_dir_path)
+        self._simulate = simulate
 
     def download_matches(self, node: AbstractNode, pattern: list[str]) -> None:
         """Perform sanity checks and run the match and download."""
@@ -139,11 +142,11 @@ class DownLoader:
             if self._download_list.pending(node):
                 # Node hasn't been downloaded previously, and it's not on the
                 # exclusion list. So we try to download.
-                if node.download(self._path_info):
+                if node.download(self._path_info, self._simulate):
                     # Download succeeded, update history.
                     self._download_list.add_to_history(node)
-                else:
-                    # Download failed, update log.
+                elif not self._simulate:
+                    # Actual download failed, update log.
                     logger.error("Failed to download! '%s'", node.title)
             # Regardless of download outcome, we are at a leaf node, and can't
             # walk the tree any deeper. So we return.
@@ -161,11 +164,13 @@ class DownLoader:
             self._download_matches(child, pattern, child_index)
 
 
-def process_dir(path_info: WebDLPaths, pattern_file: Path) -> None:
+def process_dir(
+    path_info: WebDLPaths, pattern_file: Path, simulate: bool = False
+) -> None:
     """Process the pattern file for a single download directory."""
     logger.info("Started %s", path_info.target_dir_path)
     services_root = ServiceProviders("Services")
-    downloader = DownLoader(path_info)
+    downloader = DownLoader(path_info, simulate)
 
     with open(pattern_file, "r", encoding=DEFAULT_ENCODING) as pattern_fp:
         for line in pattern_fp:
@@ -180,7 +185,7 @@ def process_dir(path_info: WebDLPaths, pattern_file: Path) -> None:
     logger.info("Finished '%s'", path_info.target_dir_path)
 
 
-def main() -> None:
+def autograbber(settings: Settings) -> None:
     """Run the batch job."""
     # Setup logger. Use force to override the basicConfig setup in common.py.
     # Doing this because autograbber is intended for batch mode and should
@@ -196,8 +201,6 @@ def main() -> None:
         level=logging.INFO,
     )
 
-    settings = process_args()
-
     # Process each batch directory in turn.
     for path_info in settings.webdl_paths():
         pattern_path = path_info.target_dir_path / PATTERN_FILENAME
@@ -205,14 +208,4 @@ def main() -> None:
             logger.error("Pattern file '%s' missing. Skipping directory!", pattern_path)
             continue
 
-        process_dir(path_info, pattern_path)
-
-
-if __name__ == "__main__":
-    # TODO Add command line option to specify debug level.
-    # TODO Add command line to specify logfile location.
-
-    try:
-        main()
-    except KeyboardInterrupt, EOFError:
-        logger.info("\nExiting...")
+        process_dir(path_info, pattern_path, settings.simulate)

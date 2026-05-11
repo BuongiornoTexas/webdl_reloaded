@@ -104,6 +104,9 @@ class Settings(BaseSettings):
     # Not implemented yet
     target_dirs: list[str] = []
     _config_file: Path | None = None
+    # Simulate and interactive should not be stored. So use property methods.
+    _simulate: bool = False
+    _interactive: bool = False
 
     @classmethod
     def settings_customise_sources(
@@ -176,6 +179,26 @@ class Settings(BaseSettings):
             )
             logger.error(err_str)
             raise FileNotFoundError(err_str)
+
+    @property
+    def simulate(self) -> bool:
+        """Return simulate."""
+        return self._simulate
+
+    @simulate.setter
+    def simulate(self, value: bool) -> None:
+        """Set simulate."""
+        self._simulate = value
+
+    @property
+    def interactive(self) -> bool:
+        """Return interactive."""
+        return self._interactive
+
+    @interactive.setter
+    def interactive(self, value: bool) -> None:
+        """Set interactive."""
+        self._interactive = value
 
     def save(self) -> None:
         """Write settings to the default location."""
@@ -285,19 +308,40 @@ def process_args() -> Settings:
         metavar="TARGET_DIR",
         help=(
             "Override the destination directory(ies) specified in 'webdl.toml'."
-            "\n  Note: 'webdl.toml' still controls local use of yt-dlp."
+            " Note: 'webdl.toml' still controls local use of yt-dlp."
         ),
     )
 
+    parser.add_argument(
+        "--interactive",
+        action='store_true',
+        help=(
+            "Run webdl in interactive (grabber) mode. WebDL defaults to batch"
+            " (autograbber) mode."
+        ),
+    )
+
+    parser.add_argument(
+        "--simulate",
+        action='store_true',
+        help=(
+            "Simulated run. Logs/prints information about file downloads, but does"
+            " not call yt-dlp."
+        ),
+    )
     args = parser.parse_args()
 
-    # Fix up CONFIG_DIR
+    # Fix up CONFIG_DIR before instantiating Settings.
     if args.config_dir:
         # pylint: disable-next=global-statement
         global CONFIG_DIR
         CONFIG_DIR = Path(args.config_dir).resolve()
 
     settings = Settings()
+
+    # Update settings with args. I really need to sort out doing this via pydantic.
+    settings.simulate = args.simulate
+    settings.interactive = args.interactive
 
     if args.target_dir:
         if not Path(args.target_dir).resolve().is_dir():

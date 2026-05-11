@@ -7,6 +7,7 @@ import string
 from webdl_reloaded.node import AbstractNode
 from webdl_reloaded.old_common import grab_json
 
+IVIEW_ID = "ABC iView"
 BASE_URL = "https://iview.abc.net.au/"
 VIDEO_URL = BASE_URL + "/video/"
 API_URL = "https://iview.abc.net.au/api/"

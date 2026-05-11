@@ -4,7 +4,7 @@
 
 from typing import cast
 
-from webdl_reloaded.common import natural_sort, process_args
+from webdl_reloaded.common import natural_sort, Settings
 from webdl_reloaded.node import AbstractNode
 from webdl_reloaded.node_services import ServiceProviders
 
@@ -13,7 +13,7 @@ def choose(
     options: list[tuple[str, AbstractNode]], allow_multi: bool
 ) -> None | list[AbstractNode]:
     """Provide a very basic interactive text menu system for user input."""
-    # TODO: Upgrade with enhanced choose from sleeper_service/rsrtools.
+    # TODO: Upgrade with enhanced choose from sleeper_service/rsrtools?
     #       Right now I've made typing consistent with way choose is applied.
     #       From my memory, my updated version offers a bit more flex, and ?may?
     #       be cleaner?
@@ -51,10 +51,8 @@ def choose(
             print("Invalid input, please try again")
 
 
-def main() -> None:
+def grabber(settings: Settings) -> None:
     """Provide interactive selection for media downloads."""
-    settings = process_args()
-
     path_info = None
     for path_info in settings.webdl_paths():
         # grabber downloads to the first available path.
@@ -92,7 +90,7 @@ def main() -> None:
         elif download_enabled:
             # Don't need to do anything with the node path.
             for node in selected_nodes:
-                if not node.download(path_info):
+                if not node.download(path_info, settings.simulate):
                     input("Press return to continue...\n")
         else:
             if len(selected_nodes) != 1:
@@ -101,10 +99,3 @@ def main() -> None:
             # push current node onto path and make selected node active.
             node_path.append(active_node)
             active_node = selected_nodes[0]
-
-
-if __name__ == "__main__":
-    try:
-        main()
-    except KeyboardInterrupt, EOFError:
-        print("\nExiting...")

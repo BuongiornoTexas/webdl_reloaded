@@ -16,6 +16,9 @@ from webdl_reloaded.old_common import grab_json
 
 logger = logging.getLogger(__name__)
 
+# Dummy bucket to catch all shows/programs in. Useful for batch mode.
+ALL_BUCKET = "All"
+SBS_ID = "SBS"
 CATALOGUE_URL = "https://catalogue.pr.sbsod.com/"
 COLLECTION_URL = CATALOGUE_URL + "collections/"
 DOWNLOAD_URL = "https://www.sbs.com.au/ondemand/watch/"
@@ -116,7 +119,8 @@ class SBSMediaContainerNode(AbstractNode):
         self._children = []
         if self.catalogue.mpxMediaID:
             # It's a single show/program/movie. Add the only downloadable.
-            self._children.append(SBSMediaNode(self.title, self.catalogue.mpxMediaID))
+            title = self.title + f" ({SBS_ID})"
+            self._children.append(SBSMediaNode(title, self.catalogue.mpxMediaID))
         else:
             # It's a series. Construct the url and make it happen.
             series_json = grab_json(
@@ -131,6 +135,7 @@ class SBSMediaContainerNode(AbstractNode):
                         f"{self.title}"
                         f" S{episode.seasonNumber}E{episode.episodeNumber:02d}"
                         f" {episode.title}"
+                        f" ({SBS_ID})"
                     )
 
                     self._children.append(
@@ -173,6 +178,8 @@ class SBSTypeNode(AbstractNode):
                 catalog_item.title, catalogue=catalog_item
             )
 
+            # Add the catch all genre.
+            catalog_item.genres.append(ALL_BUCKET)
             for genre in catalog_item.genres:
                 genre_node = genre_map.get(genre)
                 if genre_node is None:
