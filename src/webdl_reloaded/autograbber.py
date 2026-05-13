@@ -62,7 +62,7 @@ class DownloadList:
             pass
         except Exception as exc:
             logger.error(
-                "Error reading history file: %s -- %s.", self._history_file, exc
+                "Error reading history file: '%s' -- '%s'.", self._history_file, exc
             )
             raise
 
@@ -168,7 +168,7 @@ def process_dir(
     path_info: WebDLPaths, pattern_file: Path, simulate: bool = False
 ) -> None:
     """Process the pattern file for a single download directory."""
-    logger.info("Started %s", path_info.target_dir_path)
+    logger.info("Started '%s'", path_info.target_dir_path)
     services_root = ServiceProviders("Services")
     downloader = DownLoader(path_info, simulate)
 

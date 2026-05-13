@@ -168,7 +168,7 @@ class SBSTypeNode(AbstractNode):
         logger.info("Fetching '%s' catalogue.", self.collection)
         expect_count, items = self._fetch_json_items()
         logger.info("  Expect '%s' item.", expect_count)
-        logger.info("  Fetched %s items.", len(items))
+        logger.info("  Fetched '%s' items.", len(items))
 
         genre_map: dict[str, SBSGenreNode] = {}
         for item_json in items:

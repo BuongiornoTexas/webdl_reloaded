@@ -36,8 +36,12 @@ from tomli_w import dump as dump_toml
 # hack to allow cli config file location.
 CONFIG_DIR: Path | None = None
 CONFIG_FILE = "webdl.toml"
-# TODO fix this for macos, linux
-YT_DLP_FILE = "yt-dlp.exe"
+if sys.platform == "win32":
+    YT_DLP_FILE = "yt-dlp.exe"
+else:
+    # I think this should be good for macos, linux
+    YT_DLP_FILE = "yt-dlp"
+
 YT_DLP_CONFIG_FILE = "yt-dlp.conf"
 
 logging.basicConfig(
@@ -173,12 +177,11 @@ class Settings(BaseSettings):
         self._config_file = CONFIG_DIR / CONFIG_FILE
         if not self._config_file.exists():
             self.save()
-            err_str = (
-                f"`{CONFIG_FILE}` not found. Templated created (needs editing):"
-                f"\n  `{self._config_file}`"
+            logger.error(
+                "'%s' not found. Templated created (needs editing).", CONFIG_FILE
             )
-            logger.error(err_str)
-            raise FileNotFoundError(err_str)
+            logger.error("Template file: '%s'", self._config_file)
+            raise FileNotFoundError(f"'{CONFIG_FILE}' not found, template created.")
 
     @property
     def simulate(self) -> bool:
@@ -208,14 +211,25 @@ class Settings(BaseSettings):
             dump_toml(self.model_dump(), fp)
 
     @staticmethod
-    def _check_file_path(path: str | Path, file_name: str) -> Path | None:
-        """Check if file exists and returns path to file."""
-        if isinstance(path, Path):
-            check = path
-        else:
-            check = Path(path)
+    def _check_path(location: str | Path, file_name: str = "") -> Path | None:
+        """Check if location or location/file exists and returns path to item or None.
 
-        check = check.resolve() / file_name
+        Empty string for location returns None.
+        """
+        if not location:
+            return None
+
+        if isinstance(location, Path):
+            check = location.resolve()
+        else:
+            check = Path(location).resolve()
+
+        if not file_name:
+            if check.is_dir():
+                return check
+            return None
+
+        check = check / file_name
         if check.is_file():
             return check
 
@@ -224,63 +238,58 @@ class Settings(BaseSettings):
     def webdl_paths(self) -> Iterator[WebDLPaths]:
         """Provide WebDl path information for each target directory in settings."""
         if len(self.target_dirs) == 0:
-            err_str = (
-                "No target directories specified. Either update 'webdl.toml'"
-                " or provide an override with --target_dir."
+            logger.error("No target directories specified.")
+            logger.error(
+                "Either update 'webdl.toml' or provide an override with --target_dir."
             )
-            logger.error(err_str)
             # Let's make this terminal. Not much caller can do if there are no
             # targets.
-            raise FileNotFoundError(err_str)
+            raise FileNotFoundError("No target directories specified.")
 
         # Construct and check paths.
         for target in self.target_dirs:
-            target_path = Path(target).resolve()
-            if not target_path.is_dir():
+            target_path = self._check_path(target)
+            if not target_path:
                 logger.error(
-                    "Target path '%s' is not a directory. Target skipped.", target_path
+                    "Target path '%s' is not a directory. Target skipped.", target
                 )
                 continue
+            logger.info("Target directory set to '%s'", target_path)
 
             yt_dlp_path = None
             if self.allow_target_yt_dlp:
-                yt_dlp_path = self._check_file_path(target, YT_DLP_FILE)
+                yt_dlp_path = self._check_path(target, YT_DLP_FILE)
             if yt_dlp_path is None:
-                yt_dlp_path = self._check_file_path(self.yt_dlp_location, YT_DLP_FILE)
+                yt_dlp_path = self._check_path(self.yt_dlp_location, YT_DLP_FILE)
             if yt_dlp_path is None:
                 logger.error(
-                    (
-                        "yt-dlp executable not found for target path '%s'."
-                        "\n  Target directory skipped."
-                        "\n  Either yt_dlp_location must be specified in 'webdl.toml'"
-                        "\n  or 'allow_target_yt_dlp' must be 'true' and yt-dlp must"
-                        "\n  exist in target directory."
-                    ),
+                    "Target directory '%s' skipped. yt-dlp executable not found.",
                     target_path,
                 )
                 continue
+            logger.info("yt-dlp path set to '%s'", yt_dlp_path)
 
             yt_dlp_conf_path = None
             if self.allow_target_yt_dlp_conf:
-                yt_dlp_conf_path = self._check_file_path(target, YT_DLP_CONFIG_FILE)
+                yt_dlp_conf_path = self._check_path(target, YT_DLP_CONFIG_FILE)
             if yt_dlp_conf_path is None:
                 assert self._config_file is not None
-                yt_dlp_conf_path = self._check_file_path(
+                yt_dlp_conf_path = self._check_path(
                     self._config_file.parent, YT_DLP_CONFIG_FILE
                 )
             if yt_dlp_conf_path is None:
                 logger.info(
                     (
                         "yt-dlp config '%s' not found for target path '%s'."
-                        "\n  yt_dlp will run without config. To use a config file"
-                        "\n  either 'yt_dlp.conf' must exist in the same directory as"
-                        "\n  'webdl.toml', or 'allow_target_yt_dlp_conf' must be 'true'"
-                        "\n  and 'yt-dlp.conf' must exist in target directory."
                     ),
                     YT_DLP_CONFIG_FILE,
                     target_path,
                 )
+                logger.info("yt-dlp will run without config.")
+            else:
+                logger.info("yt-dlp conf path set to '%s'", yt_dlp_conf_path)
 
+            assert target_path is not None
             yield WebDLPaths(
                 target_dir_path=target_path,
                 yt_dlp_path=yt_dlp_path,
@@ -300,6 +309,7 @@ def process_args() -> Settings:
         help=(
             "Specify the configuration directory containing 'webdl.toml'. Refer to the"
             " documentation for default file locations if this option is not used."
+            " Creates a partial template if the file does not exist."
         ),
     )
 
@@ -314,16 +324,17 @@ def process_args() -> Settings:
 
     parser.add_argument(
         "--interactive",
-        action='store_true',
+        action="store_true",
         help=(
-            "Run webdl in interactive (grabber) mode. WebDL defaults to batch"
+            "Run webdl in interactive (grabber) mode on the **first** valid target"
+            " directory it finds. Without this flag, WebDL defaults to batch"
             " (autograbber) mode."
         ),
     )
 
     parser.add_argument(
         "--simulate",
-        action='store_true',
+        action="store_true",
         help=(
             "Simulated run. Logs/prints information about file downloads, but does"
             " not call yt-dlp."

@@ -143,7 +143,7 @@ class AbstractNode(ABC):
         try:
             run_sub(args=args, check=True)
         except SubprocessError as exc:
-            logger.error("Download of file '%s' failed:\n   %s.", self.title, exc)
+            logger.error("Download of file '%s' failed:\n   '%s'.", self.title, exc)
             return False
 
         return True
