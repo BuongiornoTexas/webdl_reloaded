@@ -5,9 +5,8 @@
 import logging
 from typing import Any
 
-from webdl_reloaded.common import append_to_query_string, WebDLPaths
+from webdl_reloaded.common import append_to_query_string, grab_json
 from webdl_reloaded.node import AbstractNode
-from webdl_reloaded.old_common import grab_json
 
 TEN_ID = "Ten"
 SERIES_LIST_URL = "https://vod.ten.com.au/config/android-v4"

@@ -5,7 +5,7 @@
 import string
 
 from webdl_reloaded.node import AbstractNode
-from webdl_reloaded.old_common import grab_json
+from webdl_reloaded.common import grab_json
 
 IVIEW_ID = "ABC iView"
 BASE_URL = "https://iview.abc.net.au/"
@@ -179,9 +179,7 @@ class IViewChannelContainerNode(AbstractNode):
 
             channel_href = channel_data["href"]
 
-            self._children.append(
-                IviewIndexNode(channel_title, API_URL + channel_href)
-            )
+            self._children.append(IviewIndexNode(channel_title, API_URL + channel_href))
 
 
 class IViewRootNode(AbstractNode):

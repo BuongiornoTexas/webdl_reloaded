@@ -23,6 +23,11 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import Any, NamedTuple, Callable
 
+# TODO - figure out what auto-socks is doing and un-monkey patch if possible.
+# Importing to get side effect of setting up auto-socks.
+import webdl_reloaded.old_common
+import requests
+import requests_cache
 import urllib.parse
 
 from pydantic_settings import (
@@ -52,6 +57,49 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Setup requests.
+USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/112.0"
+CACHE_PATH = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "webdl"
+if not CACHE_PATH.exists():
+    CACHE_PATH.mkdir()
+
+requests_cache.install_cache(
+    CACHE_PATH / "requests_cache", backend="sqlite", expire_after=3600
+)
+# Global session for requests.
+http_session = requests.Session()
+http_session.headers["User-Agent"] = USER_AGENT
+
+
+def grab_text(url: str) -> str:
+    """GET url text response."""
+    logger.debug("grab_text(%r)", url)
+    request = http_session.prepare_request(requests.Request("GET", url))
+    response = http_session.send(request)
+    return response.text
+
+
+# Disabling this for now, as xml isn't used anywhere in webdl at the moment.
+# Can remove lxml from dependencies while this isn't needed.
+# def grab_xml(url):
+#    logger.debug("grab_xml(%r)", url)
+#    request = http_session.prepare_request(requests.Request("GET", url))
+#    response = http_session.send(request)
+#    doc = lxml.etree.parse(
+#        io.BytesIO(response.content),
+#        lxml.etree.XMLParser(encoding="utf-8", recover=True),
+#    )
+#    response.close()
+#    return doc
+
+
+def grab_json(url: str) -> Any:
+    """GET url response as JSON."""
+    logger.debug("grab_json(%r)", url)
+    request = http_session.prepare_request(requests.Request("GET", url))
+    response = http_session.send(request)
+    return response.json()
+
 
 class WebDLPaths(NamedTuple):
     """Provide paths for target folder and yt-dlp execution."""
@@ -59,6 +107,19 @@ class WebDLPaths(NamedTuple):
     target_dir_path: Path
     yt_dlp_path: Path
     yt_dlp_conf_path: Path | None
+
+
+valid_chars = frozenset(
+    "-_.()!@#%^ abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+)
+
+
+def sanitize_filename(filename: str) -> str:
+    """Remove unsafe characters from filename."""
+    # Not used currently.
+    filename = "".join(c for c in filename if c in valid_chars)
+    assert len(filename) > 0
+    return filename
 
 
 def natural_sort(list_to_sort: list[Any], key: Callable | None = None) -> list[Any]:
@@ -279,9 +340,7 @@ class Settings(BaseSettings):
                 )
             if yt_dlp_conf_path is None:
                 logger.info(
-                    (
-                        "yt-dlp config '%s' not found for target path '%s'."
-                    ),
+                    "yt-dlp config '%s' not found for target path '%s'.",
                     YT_DLP_CONFIG_FILE,
                     target_path,
                 )
