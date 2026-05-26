@@ -10,7 +10,12 @@ from typing import Optional
 from pydantic import BaseModel
 
 from webdl_reloaded.node import AbstractNode
-from webdl_reloaded.common import append_to_query_string, grab_text
+from webdl_reloaded.common import (
+    append_to_query_string,
+    grab_text,
+    standardize_title,
+    EpisodeInfo,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -138,7 +143,7 @@ class SBSMediaContainerNode(AbstractNode):
         self._children = []
         if self.catalogue.mpxMediaID:
             # It's a single show/program/movie. Add the only downloadable.
-            title = self.title + f" ({SBS_ID})"
+            title = standardize_title(self.title, SBS_ID)
             self._children.append(SBSMediaNode(title, self.catalogue.mpxMediaID))
         else:
             # It's a series. Construct the url, create the series and its episodes.
@@ -151,13 +156,15 @@ class SBSMediaContainerNode(AbstractNode):
             for season in series_info.seasons:
                 for episode in season.episodes:
                     # Convert title to preferred format.
-                    title = (
-                        f"{self.title}"
-                        f" S{episode.seasonNumber}E{episode.episodeNumber:02d}"
-                        f" {episode.title}"
-                        f" ({SBS_ID})"
+                    episode_info = EpisodeInfo(
+                        series_title=self.title,
+                        season=episode.seasonNumber,
+                        episode=episode.episodeNumber,
+                        episode_title=episode.title,
                     )
-
+                    title = standardize_title(
+                        raw_title="", network_id=SBS_ID, episode_info=episode_info
+                    )
                     self._children.append(
                         SBSMediaNode(title=title, mpx_media_id=episode.mpxMediaID)
                     )

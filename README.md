@@ -4,8 +4,6 @@ cspell:ignore Autograbber webdl delx pypi pydantic pyinstaller
 
 # TODO
 
-- While ABC iView works, I recommend not using it until I have updated it to the new
-naming convention.
 - Ten is utterly broken at the moment. The fix will come after code cleanup on iView.
 
 # WebDL Reloaded
@@ -107,6 +105,7 @@ target_dirs = [
     "D:/Users/buongiornotexas/Documents/Programs/sbs", 
     "D:/Users/buongiornotexas/Documents/Programs/abc"
 ]
+logging_level="INFO"
 ```
 
 - `yt_dlp_location` is the path to the default yt-dlp executable.
@@ -119,6 +118,8 @@ or by show, or by movie, etc.
 executable in each target directory.
 - If `allow_target_yt_dlp_conf` is`true`, `webdl` will look for and prefer to use a
 `yt-dlp.conf` configuration file in each target directory.
+- `logging_level` is an optional logging level, with a default of "INFO". Set to
+"WARNING" to suppress INFO lines.
 
 ## `yt-dlp.conf`
 
@@ -278,8 +279,10 @@ I'm trying to incorporate an "All" bucket category which gathers everything in a
 subcategory. This makes some patterns a bit easier and more robust to re-categorisation
 in the future. E.g. The Americans is currently classed as Thriller
 (SBS/TV Shows/Thriller), but could easily move to the general Drama (SBS/TV Shows/Drama)
-category in the future. To avoid this, try using (SBS/TV Shows/All/The Americans). 
-Definitely available for SBS at the moment, hopefully coming to ABC and Ten soon.
+category in the future. To avoid this, try using (SBS/TV Shows/All/The Americans). ABC
+is easier still: it has a special (ABC iView/All/All) option to get to series, and there
+is also an All option in the category and channel lists (All/All is faster though).
+Hopefully coming to Ten soon.
 
 
 **This next bit is untested** at the moment. You may optionally created a 
@@ -325,8 +328,7 @@ so much easier for me to code).
       
   For example "Bosch S1E05 Mama's Boy (SBS)". 
 
-  This is complete for SBS, pending for ABC and Ten (I'd suggest not using this
-  package for those providers until the updates are done).
+  This is complete for SBS and ABC, pending for Ten.
   
   The script`fix_history.py` provides a starting point for converting an old
   school history file, but it will still  require a bit of manual intervention/cleanup
@@ -350,11 +352,10 @@ configuration section for updated command line arguments.
 
 # Roadmap
 
-- ~~Convert to a src based library~~ and commit to pypi.
+
 - Add annotations - in progress.
-- Follow the SBS model of using pydantic to convert API json into python objects.
-  - Pending for both 10play and ABC.
 - Get 10Play back online.
-- Add logging to make batch and interactive mode more talky (no long pauses with nothing
-happening).
+- Follow the SBS model of using pydantic to convert API json into python objects.
+  - Pending for 10play.
+- Add logging to make batch and interactive mode more talky (no long pauses with nothing happening).
 - Lint all files properly after cleanup.
