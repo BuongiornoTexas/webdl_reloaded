@@ -4,6 +4,7 @@ import logging
 import os
 import subprocess
 
+logger = logging.getLogger(__name__)
 
 def detect_gnome():
     """ Gnome via python-gconf """
@@ -63,8 +64,8 @@ def configure_socks(host, port):
     try:
         import socks, socket
     except ImportError:
-        logging.error("Failed to use configured SOCKS proxy: %s:%s", host, port)
-        logging.error("Try installing SocksiPy: http://socksipy.sf.net")
+        logger.error("Failed to use configured SOCKS proxy: %s:%s", host, port)
+        logger.error("Try installing SocksiPy: http://socksipy.sf.net")
         return False
 
     socket.socket = socks.socksocket

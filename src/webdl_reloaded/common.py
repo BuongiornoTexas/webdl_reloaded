@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# cspell:ignore MEIPASS, dotenv autograbber
+# cspell:ignore MEIPASS, dotenv autograbber eries pisode
 """Provides utility functions and classes for WebDL."""
 
 # cspell:ignore webdl
@@ -23,6 +23,11 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import Any, NamedTuple, Callable
 
+# TODO - figure out what auto-socks is doing and un-monkey patch if possible.
+# Importing to get side effect of setting up auto-socks.
+import webdl_reloaded.old_common  # Must import this before requests.
+import requests
+import requests_cache
 import urllib.parse
 
 from pydantic_settings import (
@@ -44,13 +49,50 @@ else:
 
 YT_DLP_CONFIG_FILE = "yt-dlp.conf"
 
-logging.basicConfig(
-    # Reverted to default python log format.
-    # format="%(levelname)s %(message)s",
-    level=logging.INFO if os.environ.get("DEBUG", None) is None else logging.DEBUG,
-    stream=sys.stdout,
-)
 logger = logging.getLogger(__name__)
+
+# Setup requests.
+USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/112.0"
+CACHE_PATH = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "webdl"
+if not CACHE_PATH.exists():
+    CACHE_PATH.mkdir()
+
+requests_cache.install_cache(
+    CACHE_PATH / "requests_cache", backend="sqlite", expire_after=3600
+)
+# Global session for requests.
+http_session = requests.Session()
+http_session.headers["User-Agent"] = USER_AGENT
+
+
+def grab_text(url: str) -> str:
+    """GET url text response."""
+    logger.debug("grab_text(%r)", url)
+    request = http_session.prepare_request(requests.Request("GET", url))
+    response = http_session.send(request)
+    return response.text
+
+
+# Disabling this for now, as xml isn't used anywhere in webdl at the moment.
+# Can remove lxml from dependencies while this isn't needed.
+# def grab_xml(url):
+#    logger.debug("grab_xml(%r)", url)
+#    request = http_session.prepare_request(requests.Request("GET", url))
+#    response = http_session.send(request)
+#    doc = lxml.etree.parse(
+#        io.BytesIO(response.content),
+#        lxml.etree.XMLParser(encoding="utf-8", recover=True),
+#    )
+#    response.close()
+#    return doc
+
+
+def grab_json(url: str) -> Any:
+    """GET url response as JSON."""
+    logger.debug("grab_json(%r)", url)
+    request = http_session.prepare_request(requests.Request("GET", url))
+    response = http_session.send(request)
+    return response.json()
 
 
 class WebDLPaths(NamedTuple):
@@ -59,6 +101,68 @@ class WebDLPaths(NamedTuple):
     target_dir_path: Path
     yt_dlp_path: Path
     yt_dlp_conf_path: Path | None
+
+
+class EpisodeInfo(NamedTuple):
+    """Data required for standard episode title."""
+
+    series_title: str
+    season: int
+    episode: int
+    episode_title: str = ""
+
+
+valid_chars = frozenset(
+    "-_.()!@#%^ abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+)
+
+
+def sanitize_filename(filename: str) -> str:
+    """Remove unsafe characters from filename."""
+    # Not used currently.
+    filename = "".join(c for c in filename if c in valid_chars)
+    assert len(filename) > 0
+    return filename
+
+
+def standardize_title(
+    raw_title: str, network_id: str, episode_info: EpisodeInfo | None = None
+) -> str:
+    """Create standard form tv episode title if appropriate.
+
+    Expects episode info named tuple or raw_title of the form:
+        "<Series_Title> [S|Series] nn [E|Ep|Episode] nn <Optional_episode_title>"
+
+    Network ID should be something like "ABC", "SBS" or "Ten"
+    returns raw_title if the string doesn't match or tuple is not supplied.
+    """
+    if not episode_info:
+        # This handles ABC.
+        match = re.match(
+            r"(.+) +S(eries)? *(\d+) *E(pisode|p)? *(\d+) *(.*)", raw_title
+        )
+        if match:
+            episode_info = EpisodeInfo(
+                series_title=match.group(1),
+                season=int(match.group(3)),
+                episode=int(match.group(5)),
+                episode_title=match.group(6),
+            )
+
+        else:
+            new_title = raw_title
+
+    if episode_info:
+        new_title = (
+            f"{episode_info.series_title}"
+            f" S{episode_info.season}E{episode_info.episode:02}"
+        )
+
+        if episode_info.episode_title:
+            new_title += " " + episode_info.episode_title
+
+    new_title = new_title + f" ({network_id})"
+    return new_title
 
 
 def natural_sort(list_to_sort: list[Any], key: Callable | None = None) -> list[Any]:
@@ -105,6 +209,7 @@ class Settings(BaseSettings):
     allow_target_yt_dlp: bool = False
     allow_target_yt_dlp_conf: bool = False
     yt_dlp_location: str = ""
+    logging_level: str = "INFO"
     # Not implemented yet
     target_dirs: list[str] = []
     _config_file: Path | None = None
@@ -182,6 +287,14 @@ class Settings(BaseSettings):
             )
             logger.error("Template file: '%s'", self._config_file)
             raise FileNotFoundError(f"'{CONFIG_FILE}' not found, template created.")
+
+        # Default logging config.
+        logging.basicConfig(
+            # Reverted to default python log format.
+            level=self.logging_level,
+            stream=sys.stdout,
+        )
+        logger.info("Logging set to '%s'", self.logging_level)
 
     @property
     def simulate(self) -> bool:
@@ -279,9 +392,7 @@ class Settings(BaseSettings):
                 )
             if yt_dlp_conf_path is None:
                 logger.info(
-                    (
-                        "yt-dlp config '%s' not found for target path '%s'."
-                    ),
+                    "yt-dlp config '%s' not found for target path '%s'.",
                     YT_DLP_CONFIG_FILE,
                     target_path,
                 )

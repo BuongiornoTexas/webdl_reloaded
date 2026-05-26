@@ -11,6 +11,8 @@ import re
 import sys
 from pathlib import Path
 
+from webdl_reloaded.common import standardize_title
+
 NEW_HISTORY = ".history.new.txt"
 
 
@@ -48,3 +50,6 @@ if __name__ == "__main__":
             if fixed := fix_sbs(line):
                 nfp.write(fixed + "\n")
                 continue
+
+            abc_line = standardize_title(line.strip(), "ABC")
+            nfp.write(abc_line + "\n")

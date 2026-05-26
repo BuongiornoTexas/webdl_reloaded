@@ -198,7 +198,7 @@ def autograbber(settings: Settings) -> None:
             logging.FileHandler(LOGFILE, mode="w", encoding=DEFAULT_ENCODING),
         ],
         force=True,
-        level=logging.INFO,
+        level=settings.logging_level,
     )
 
     # Process each batch directory in turn.

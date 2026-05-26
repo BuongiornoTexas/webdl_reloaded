@@ -2,21 +2,87 @@
 # cspell:ignore iview webdl
 """Provides media nodes for ABC iView."""
 
-import string
+import logging
+
+from typing import Optional
+
+from pydantic import BaseModel, Field, AliasChoices, Json
 
 from webdl_reloaded.node import AbstractNode
-from webdl_reloaded.old_common import grab_json
+from webdl_reloaded.common import grab_text, standardize_title
 
+ABC_ID = "ABC"
 IVIEW_ID = "ABC iView"
 BASE_URL = "https://iview.abc.net.au/"
 VIDEO_URL = BASE_URL + "/video/"
 API_URL = "https://iview.abc.net.au/api/"
 
+ALL_BUCKET = "All"
+ALL_HREF = ""
 
-class IViewMediaNode(AbstractNode):
-    """Downloadable iView media Node."""
+logger = logging.getLogger(__name__)
 
-    # In future, provide these by pydantic BaseModel.
+
+class SeriesModel(BaseModel):
+    """Series information."""
+
+    seriesTitle: str
+    latestEpisode: str
+
+
+class SeriesListModel(BaseModel):
+    """List of Series."""
+
+    # Use Json type to allow string coercion within in pydantic. A bit
+    # yuck, but better than doing the iterations myself.
+    seriesList: Json[list[SeriesModel]]
+
+
+class EpisodeModel(BaseModel):
+    """Episode data model."""
+
+    # I think this is all we need. It's possible episodeTitle may not always
+    # appear. In which case, treat this as Optional and handle the special case
+    # in SeriesNode.
+    seriesTitle: str
+    # ABC is inconsistent about this element.
+    title: Optional[str] = None
+    episodeHouseNumber: str
+    href: str
+
+
+class EpisodesListModel(BaseModel):
+    """Collection of episode models."""
+
+    episodes: list[EpisodeModel]
+
+
+class CollectionsModel(BaseModel):
+    """Collections/index/carousels."""
+
+    carousels: list[EpisodesListModel]
+    collections: list[EpisodesListModel]
+    index: list[EpisodesListModel]
+
+
+class CategoryModel(BaseModel):
+    """Category data for channels and genres."""
+
+    title: str
+    href: str
+
+
+class CategoriesListModel(BaseModel):
+    """Collection of category (genre) models."""
+
+    categories: list[CategoryModel] = Field(
+        validation_alias=AliasChoices("channels", "categories")
+    )
+
+
+class MediaNode(AbstractNode):
+    """Downloadable iView media (episode) Node."""
+
     _video_key: str
 
     def __init__(self, title: str, video_key: str) -> None:
@@ -53,147 +119,158 @@ class IViewMediaNode(AbstractNode):
         self._children = []
 
 
-class IviewIndexNode(AbstractNode):
-    """General iView navigation node."""
+class SeriesNode(AbstractNode):
+    """Container for episodes."""
 
-    url: str
-    # TODO Check and maybe clean up implementation of unique_series?
-    unique_series: set[str]
+    # Fortunately, iView treats EVERYTHING as a series.
+    # This is the MediaContainerNode for iView.
+    _slug: str
 
-    def __init__(self, title: str, url: str) -> None:
-        """Initialise iView index node."""
+    def __init__(self, title: str, slug: str) -> None:
+        """Initialise iView series node."""
         super().__init__(title)
-        # TODO Maybe this can be converted to a class variable to minimise duplicate
-        # nodes.
-        self.unique_series = set()
-        self.url = url
+        self._slug = slug
 
     def _fill_children(self) -> None:
-        """Create list of children."""
         self._children = []
-        info = grab_json(self.url)
-        for key in ["carousels", "collections", "index"]:
-            for collection_list in info.get(key, None):
-                if isinstance(collection_list, dict):
-                    for ep_info in collection_list.get("episodes", []):
-                        title = ep_info["seriesTitle"]
-                        if title in self.unique_series:
-                            # Already added.
-                            continue
-                        self.unique_series.add(title)
-                        url = API_URL + ep_info["href"]
-                        self._children.append(
-                            IViewMediaContainerNode(title, url, series_container=True)
-                        )
 
+        # Grab the series info.
+        # Most typical container for iView media Nodes.
+        text = grab_text(API_URL + "series/" + self._slug)
+        data = EpisodesListModel.model_validate_json(text)
 
-class IViewMediaContainerNode(AbstractNode):
-    """Container Node for series and "flat" collections like "Featured"."""
+        for episode in data.episodes:
+            # video_key = episode["episodeHouseNumber"]
+            # series_title = episode["seriesTitle"]
+            # episode_title = episode.get("title", None)
 
-    # In future, provide these by pydantic BaseModel.
-    url: str
-    # If have more than one type, make this an enum.
-    # for iView, we have series and thing things like the featured page.
-    series_container: bool
-
-    def __init__(self, title: str, url: str, series_container: bool) -> None:
-        """Initialise iView container node."""
-        super().__init__(title)
-        self.url = url
-        self.series_container = series_container
-
-    def _fill_children(self) -> None:
-        """Create container node children."""
-        if self.series_container:
-            # Most typical container for iView media Nodes.
-            series_info = grab_json(self.url)
-            series_slug = series_info["href"].split("/")[1]
-            series_url = (
-                API_URL
-                + "series/"
-                + series_slug
-                + "/"
-                + series_info["seriesHouseNumber"]
-            )
-            episodes_list = grab_json(series_url).get("episodes", [])
-        else:
-            # Dealing with something like the features page.
-            # Previously an IViewFlatNode in OG webdl.
-            # Which turns out to be much simpler
-            episodes_list = grab_json(self.url)
-
-        self._children = []
-        for episode in episodes_list:
-            video_key = episode["episodeHouseNumber"]
-            series_title = episode["seriesTitle"]
-            episode_title = episode.get("title", None)
-
-            if episode_title:
-                episode_title = series_title + " " + episode_title
+            title = episode.seriesTitle
+            if episode.title:
+                title += " " + episode.title
             else:
-                # How it's done on the Featured page.
-                episode_title = series_title
+                logger.debug(
+                    "Episode without title (movie, trailer, etc.): %s (%s)",
+                    title,
+                    episode.episodeHouseNumber,
+                )
 
-            self._children.append(IViewMediaNode(episode_title, video_key))
+            title = standardize_title(title, ABC_ID)
+
+            self._children.append(MediaNode(title, episode.episodeHouseNumber))
 
 
-class IViewCategoryContainerNode(AbstractNode):
-    """iView category container class."""
+class CategoryNode(AbstractNode):
+    """Channels and genres, includes an "All". Container for Series."""
+
+    _href: str
+    # Class variable to gather all series nodes. Key is series slug.
+    _series_map: dict[str, SeriesNode] = {}
+
+    def __init__(self, title: str, href: str) -> None:
+        """Initialise instance."""
+        super().__init__(title)
+        self._href = href
+
+    @staticmethod
+    def _get_series_slug(href: str) -> str:
+        """Extract series slug from href."""
+        return href.split("/")[1].strip()
+
+    @classmethod
+    def _fill_series_map(cls) -> None:
+        """Pull series info from ABC and create unique series map."""
+        logger.info("Pulling iView series list.")
+        text = grab_text(API_URL + "series")
+        # mypy doesn't understand that pydantic knows how to deal with this coercion
+        # correctly.
+        data = SeriesListModel(seriesList=text)  # type: ignore
+
+        base_map: dict[str, list[str]] = {}
+        # Messy & inefficient two pass process to ensure unique titles.
+        # I'm assuming slugs are unique!
+        for series in data.seriesList:
+            title = series.seriesTitle
+            this_slug = cls._get_series_slug(series.latestEpisode)
+            if title not in base_map:
+                base_map[title] = [this_slug]
+            else:
+                base_map[title].append(this_slug)
+
+        # Now create uniquely named series map.
+        for title, slugs in base_map.items():
+            if len(slugs) == 1:
+                cls._series_map[slugs[0]] = SeriesNode(title, slugs[0])
+            else:
+                # I strongly suspect this will never ever be triggered.
+                for i, slug in enumerate(slugs):
+                    cls._series_map[slug] = SeriesNode(f"{title} ({i+1})", slug)
 
     def _fill_children(self) -> None:
-        """Fill iView category nodes."""
-        data = grab_json(API_URL + "categories")
-        categories = data["categories"]
+        """Fill series in category, including "All"."""
+        if not self._series_map:
+            # Grab the master list of series.
+            self._fill_series_map()
 
+        if self.title == ALL_BUCKET and self._href == ALL_HREF:
+            # Special snowflake.
+            self._children = list(self._series_map.values())
+            return
+
+        # Actual ABC collection.
+        # Only create one entry for each series, even if it occurs multiple times.
+        unique_series = set()
         self._children = []
-        for category_data in categories:
-            category_title = category_data["title"]
-            category_title = string.capwords(category_title)
+        text = grab_text(API_URL + self._href)
+        data = CollectionsModel.model_validate_json(text)
+        for collection_list in [data.carousels, data.index, data.collections]:
+            for collection in collection_list:
+                for series in collection.episodes:
+                    # We should have an episode from a series now.
+                    slug = self._get_series_slug(series.href)
+                    if slug not in unique_series:
+                        # Skip repeats.
+                        unique_series.add(slug)
+                        if node := self._series_map.get(slug):
+                            # Found something on the A-Z program list
+                            self._children.append(node)
+                        else:
+                            # Not on the A-Z program list, but still something
+                            # (e.g. preview, coming soon, etc.). Add and kick
+                            # down the road.
+                            self._children.append(SeriesNode(series.seriesTitle, slug))
 
-            category_href = category_data["href"]
 
-            self._children.append(
-                IviewIndexNode(category_title, API_URL + category_href)
-            )
-
-
-class IViewChannelContainerNode(AbstractNode):
-    """Container node for channels."""
+class CategoriesListNode(AbstractNode):
+    """Container for lists of categories (e.g. channels, categories)."""
 
     def _fill_children(self) -> None:
-        """Create channel children nodes."""
-        data = grab_json(API_URL + "channel")
-        channels = data["channels"]
+        """Create category list."""
+        if self.title == ALL_BUCKET:
+            # Special case of ABC iView/All/All
+            self._children = [CategoryNode(ALL_BUCKET, ALL_HREF)]
+            return
 
-        self._children = []
-        for channel_data in channels:
-            channel_id = channel_data["categoryID"]
-            channel_title = {
-                "abc1": "ABC1",
-                "abc2": "ABC2",
-                "abc3": "ABC3",
-                "abc4kids": "ABC4Kids",
-                "news": "News",
-                "abcarts": "ABC Arts",
-            }.get(channel_id, channel_data["title"])
+        logger.info("Fetching iView '%s' catalogue.", self.title)
+        text = grab_text(API_URL + self.title.lower())
+        logger.info("Processing iView '%s' catalogue.", self.title)
+        data = CategoriesListModel.model_validate_json(text)
 
-            channel_href = channel_data["href"]
-
-            self._children.append(
-                IviewIndexNode(channel_title, API_URL + channel_href)
-            )
+        # Create list and the catch all.
+        self._children = [CategoryNode(ALL_BUCKET, ALL_HREF)]
+        # Annoyingly, ABC names the categories so we need two levels of
+        # dereference to get to the list.
+        for category in data.categories:
+            self._children.append(CategoryNode(category.title, category.href))
 
 
 class IViewRootNode(AbstractNode):
     """Root node for iView tree."""
 
-    # __init__ from super class. Handle in pydantic in future.
-
     def _fill_children(self) -> None:
         self._children = [
-            IViewCategoryContainerNode("By Category"),
-            IViewChannelContainerNode("By Channel"),
-            IViewMediaContainerNode(
-                "Featured", API_URL + "featured", series_container=False
-            ),
+            CategoriesListNode("Categories"),
+            CategoriesListNode("Channels"),
+            # Deal with the special.
+            CategoriesListNode(ALL_BUCKET),
+            # Dropping featured altogether. It really doesn't add value.
         ]
