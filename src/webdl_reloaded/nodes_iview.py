@@ -14,7 +14,7 @@ from webdl_reloaded.common import grab_text, standardize_title
 ABC_ID = "ABC"
 IVIEW_ID = "ABC iView"
 BASE_URL = "https://iview.abc.net.au/"
-VIDEO_URL = BASE_URL + "/video/"
+VIDEO_URL = BASE_URL + "video/"
 API_URL = "https://iview.abc.net.au/api/"
 
 ALL_BUCKET = "All"
